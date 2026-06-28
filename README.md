@@ -90,38 +90,44 @@ Open [http://localhost:8080](http://localhost:8080), then **Settings → Google 
 
 ---
 
-## Connecting Other Frontends
+## Connecting AI Clients
 
-The gateway speaks standard MCP-over-SSE. Any MCP client works without changes:
+The gateway speaks standard MCP-over-SSE. Connect any MCP-compatible client to `http://127.0.0.1:8000/sse` — all clients share the same tools and tokens simultaneously.
 
 ### Claude Desktop
 
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
 ```json
-// ~/Library/Application Support/Claude/claude_desktop_config.json
 {
   "mcpServers": {
     "mcp-gateway": {
-      "url": "http://127.0.0.1:8000/sse"
+      "url": "http://127.0.0.1:8000/mcp"
     }
   }
 }
 ```
 
-### Gemini Desktop / AI Studio
+Quit and reopen Claude Desktop. Tools appear in the hammer icon menu.
 
-Add an MCP server with URL `http://127.0.0.1:8000/sse`.
+### Gemini Desktop
+
+1. Open Gemini Desktop → **Settings** → **Extensions** (or **MCP Servers**).
+2. Click **Add server**.
+3. Set type to `SSE` or `HTTP`, URL to `http://127.0.0.1:8000/mcp`.
+4. Save. The status indicator turns green when the gateway is running.
 
 ### Cursor
 
-Settings → Features → MCP → Add → type `sse`, URL `http://127.0.0.1:8000/sse`.
+Settings → Features → MCP → **+ Add New MCP Server** → type `http`, URL `http://127.0.0.1:8000/mcp`.
 
 ### VS Code — Cline / Roo Code
 
 ```json
-{ "mcpServers": { "mcp-gateway": { "url": "http://127.0.0.1:8000/sse" } } }
+{ "mcpServers": { "mcp-gateway": { "url": "http://127.0.0.1:8000/mcp" } } }
 ```
 
-See [`mcp-gateway/INTEGRATION.md`](mcp-gateway/INTEGRATION.md) for full details and Python SDK usage.
+See [mcp-gateway/INTEGRATION.md](mcp-gateway/INTEGRATION.md) for step-by-step instructions, screenshots-level detail, troubleshooting tips, and Python SDK usage.
 
 ---
 
@@ -129,11 +135,12 @@ See [`mcp-gateway/INTEGRATION.md`](mcp-gateway/INTEGRATION.md) for full details 
 
 | Tool | Auth required | Description |
 |------|---------------|-------------|
-| `calculate` | — | Safe math expression evaluator (sympy) |
+| `calculate` | — | Safe math expression evaluator |
 | `get_weather` | — | Current weather via wttr.in, with IMD alerts for Indian cities |
 | `gmail_list_latest` | Google | Latest inbox emails (subject, sender, snippet) |
 | `calendar_list_events` | Google | Upcoming events from Google Calendar |
 | `get_stocks` | Google | Stock portfolio from a configured Google Sheet |
+| `indmoney_*` | IndMoney | All tools from IndMoney MCP (networth, SIPs, holdings, etc.) — proxied via OAuth 2.1 + PKCE |
 
 ---
 
@@ -150,8 +157,11 @@ See [`mcp-gateway/INTEGRATION.md`](mcp-gateway/INTEGRATION.md) for full details 
 ## Security
 
 - All secrets live in `.env` (gitignored) or macOS Keychain — never in code.
-- A pre-commit hook in `.git/hooks/pre-commit` blocks accidental `.env*` file commits.
-- `.env.example` ships safe placeholder values only.
+- `.env.example` files contain only placeholder values — no real credentials.
+- CORS is restricted to `DASHBOARD_ORIGIN` on both the gateway and dashboard.
+- OAuth state tokens expire after 5 minutes; `postMessage` targets only the configured dashboard origin.
+- Security headers (`X-Frame-Options`, `Content-Security-Policy`, `X-Content-Type-Options`, etc.) are set on all responses.
+- Input validation on all config endpoints: spreadsheet IDs, URLs, and tool names are regex-checked before use.
 - Never commit or push automatically — all git actions are manual.
 
-See [`CLAUDE.md`](CLAUDE.md) for full security and contribution conventions.
+See [`.github/SECURITY.md`](.github/SECURITY.md) for the full security design and [docs/deployment.md](docs/deployment.md) for the secrets checklist.

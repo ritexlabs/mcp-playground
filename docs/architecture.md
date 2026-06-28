@@ -177,8 +177,13 @@ load_token(service)
 | Concern | Mechanism |
 |---------|-----------|
 | Secret storage | macOS Keychain via `keyring`; `.env` as fallback cache |
-| Secret isolation | `.env` is gitignored; pre-commit hook blocks `*.env*` commits |
-| Token exposure | `sanitize_error()` redacts strings ≥ 30 chars (tokens) from error messages |
+| Secret isolation | `.env` is gitignored; `.env.example` has placeholder values only |
+| CORS | FastAPI `CORSMiddleware` restricts allowed origins to `DASHBOARD_ORIGIN` (default `http://localhost:8080`) |
+| Security headers | `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`, `Content-Security-Policy` on all responses |
+| OAuth state TTL | In-memory `_AUTH_FLOWS` and `_INDMONEY_AUTH_FLOWS` entries expire after `AUTH_FLOW_TTL_SECONDS` (default 300 s) |
+| postMessage origin | IndMoney success page sends `postMessage` only to `DASHBOARD_ORIGIN` — never to `'*'` |
+| Token exposure | `sanitize_error()` redacts strings ≥ 30 chars (including `.`, `/`, `+`, `=`) from error messages |
+| Input validation | Spreadsheet IDs validated with `^[A-Za-z0-9_\-]{20,60}$`; IndMoney URLs validated with `urlparse`; tool names restricted to `[a-z0-9_]{1,60}` |
 | Rate limiting | Per-tool token-bucket: 60 req/min default, configurable via `.env` |
 | Audit trail | JSON log per day: every tool call, auth event, system event |
 | Credential scope | All Google services share one token with combined scopes; no per-service tokens |
@@ -242,6 +247,8 @@ Clients (Claude Desktop, dashboard, etc.) see a single flat tool list and need n
 | `RATE_LIMIT_ENABLED` | No | Enable/disable rate limiter (default: `true`) |
 | `RATE_LIMIT_REQUESTS_PER_MINUTE` | No | Requests per tool per minute (default: `60`) |
 | `TOKEN_EXPIRY_WARNING_HOURS` | No | Refresh token this many hours before expiry (default: `24`) |
+| `DASHBOARD_ORIGIN` | No | Allowed CORS origin and postMessage target (default: `http://localhost:8080`) |
+| `AUTH_FLOW_TTL_SECONDS` | No | OAuth state expiry in seconds (default: `300`) |
 
 ### daily-briefing-dashboard `.env`
 
@@ -249,3 +256,4 @@ Clients (Claude Desktop, dashboard, etc.) see a single flat tool list and need n
 |----------|----------|-------------|
 | `MCP_GATEWAY_URL` | No | Gateway base URL (default: `http://127.0.0.1:8000`) |
 | `PORT` | No | Dashboard port (default: `8080`) |
+| `DASHBOARD_ORIGIN` | No | Allowed CORS origin — must match gateway's `DASHBOARD_ORIGIN` (default: `http://localhost:8080`) |

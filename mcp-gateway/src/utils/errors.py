@@ -38,5 +38,6 @@ def sanitize_error(error: Exception) -> str:
     msg = str(error)
     home = str(Path.home())
     msg = msg.replace(home, "[HOME]")
-    msg = re.sub(r"[A-Za-z0-9_\-]{30,}", "[REDACTED]", msg)
+    # Catch OAuth tokens/secrets that may include . / + = chars
+    msg = re.sub(r"[A-Za-z0-9._\-/+=]{30,}", "[REDACTED]", msg)
     return msg

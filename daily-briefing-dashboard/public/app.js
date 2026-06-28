@@ -74,13 +74,24 @@ function setupEventListeners() {
   
   if (DOM.changeLocationBtn) {
     DOM.changeLocationBtn.addEventListener("click", () => {
-      if (DOM.settingsDialog) DOM.settingsDialog.showModal();
+      if (!DOM.settingsDialog) return;
+      DOM.settingsDialog.showModal();
+      const activeTab = DOM.settingsDialog.querySelector(".tab-btn.active")?.id;
+      if (activeTab === "tab-google")   loadAuthStatus();
+      if (activeTab === "tab-stocks")   loadStocksSheetStatus();
+      if (activeTab === "tab-indmoney") loadIndMoneyStatus();
     });
   }
   
   if (DOM.settingsBtn) {
     DOM.settingsBtn.addEventListener("click", () => {
-      if (DOM.settingsDialog) DOM.settingsDialog.showModal();
+      if (!DOM.settingsDialog) return;
+      DOM.settingsDialog.showModal();
+      const activeTab = DOM.settingsDialog.querySelector(".tab-btn.active")?.id;
+      if (activeTab === "tab-google")   loadAuthStatus();
+      if (activeTab === "tab-stocks")   loadStocksSheetStatus();
+      if (activeTab === "tab-indmoney") loadIndMoneyStatus();
+      if (activeTab === "tab-layout")   _renderLayoutTab();
     });
   }
   
@@ -1049,7 +1060,8 @@ async function refreshData() {
     fetchWeather(),
     fetchCalendar(),
     fetchStocks(),
-    fetchCelebrations()
+    fetchCelebrations(),
+    fetchIndMoney(),
   ]);
 }
 
@@ -1117,12 +1129,143 @@ function showSkeletons() {
   if (DOM.stocksFooter) DOM.stocksFooter.style.display = "none";
 }
 
+// ─── Card Layout ─────────────────────────────────────────────────────────────
+
+const CARD_DEFS = [
+  { id: "weather-card",       label: "Weather",                   icon: "🌤" },
+  { id: "celebrations-card",  label: "Birthdays & Anniversaries", icon: "🎉" },
+  { id: "calendar-card",      label: "Calendar",                  icon: "📅" },
+  { id: "indmoney-card",      label: "My Networth",               icon: "💰" },
+  { id: "stocks-card",        label: "Stocks",                    icon: "📈" },
+];
+
+const _DEFAULT_ORDER = CARD_DEFS.map(c => c.id);
+let _cardLayout = { order: [..._DEFAULT_ORDER], hidden: new Set() };
+
+function _loadCardLayout() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("dashboard_card_layout") || "null");
+    if (!saved) return;
+    const allIds = _DEFAULT_ORDER;
+    const savedOrder = (saved.order || []).filter(id => allIds.includes(id));
+    const missing = allIds.filter(id => !savedOrder.includes(id));
+    _cardLayout = {
+      order: [...savedOrder, ...missing],
+      hidden: new Set((saved.hidden || []).filter(id => allIds.includes(id))),
+    };
+  } catch {}
+}
+
+function _saveCardLayout() {
+  try {
+    localStorage.setItem("dashboard_card_layout", JSON.stringify({
+      order: _cardLayout.order,
+      hidden: [..._cardLayout.hidden],
+    }));
+  } catch {}
+}
+
+function _applyCardLayout() {
+  const col1 = document.querySelector(".grid-column:first-child");
+  const col2 = document.querySelector(".grid-column:last-child");
+  if (!col1 || !col2) return;
+
+  const visible = _cardLayout.order.filter(id => !_cardLayout.hidden.has(id));
+  const half = Math.ceil(visible.length / 2);
+
+  visible.slice(0, half).forEach(id => {
+    const card = document.getElementById(id);
+    if (card) { card.style.display = ""; col1.appendChild(card); }
+  });
+  visible.slice(half).forEach(id => {
+    const card = document.getElementById(id);
+    if (card) { card.style.display = ""; col2.appendChild(card); }
+  });
+
+  _cardLayout.hidden.forEach(id => {
+    const card = document.getElementById(id);
+    if (card) card.style.display = "none";
+  });
+}
+
+function _renderLayoutTab() {
+  const list = document.getElementById("layout-cards-list");
+  if (!list) return;
+
+  list.innerHTML = _cardLayout.order.map(id => {
+    const def = CARD_DEFS.find(c => c.id === id);
+    if (!def) return "";
+    const checked = !_cardLayout.hidden.has(id);
+    return `<div class="layout-item" draggable="true" data-card-id="${id}">
+      <span class="layout-drag-handle" aria-hidden="true">⠿</span>
+      <span class="layout-card-icon">${def.icon}</span>
+      <span class="layout-card-label">${def.label}</span>
+      <label class="layout-vis-toggle">
+        <input type="checkbox" class="layout-vis-cb" data-card-id="${id}" ${checked ? "checked" : ""}>
+        <span class="layout-vis-slider"></span>
+      </label>
+    </div>`;
+  }).join("");
+
+  let draggedId = null;
+  list.querySelectorAll(".layout-item").forEach(item => {
+    item.addEventListener("dragstart", e => {
+      draggedId = item.dataset.cardId;
+      e.dataTransfer.effectAllowed = "move";
+      setTimeout(() => item.classList.add("dragging"), 0);
+    });
+    item.addEventListener("dragend", () => {
+      item.classList.remove("dragging");
+      list.querySelectorAll(".layout-item").forEach(r => r.classList.remove("drag-over"));
+      draggedId = null;
+    });
+    item.addEventListener("dragover", e => {
+      e.preventDefault();
+      if (!draggedId || item.dataset.cardId === draggedId) return;
+      list.querySelectorAll(".layout-item").forEach(r => r.classList.remove("drag-over"));
+      item.classList.add("drag-over");
+    });
+    item.addEventListener("dragleave", () => item.classList.remove("drag-over"));
+    item.addEventListener("drop", e => {
+      e.preventDefault();
+      if (!draggedId || item.dataset.cardId === draggedId) return;
+      const fromIdx = _cardLayout.order.indexOf(draggedId);
+      const toIdx   = _cardLayout.order.indexOf(item.dataset.cardId);
+      if (fromIdx === -1 || toIdx === -1) return;
+      _cardLayout.order.splice(fromIdx, 1);
+      _cardLayout.order.splice(toIdx, 0, draggedId);
+      _saveCardLayout();
+      _applyCardLayout();
+      _renderLayoutTab();
+    });
+  });
+
+  list.querySelectorAll(".layout-vis-cb").forEach(cb => {
+    cb.addEventListener("change", () => {
+      const id = cb.dataset.cardId;
+      if (cb.checked) _cardLayout.hidden.delete(id);
+      else            _cardLayout.hidden.add(id);
+      _saveCardLayout();
+      _applyCardLayout();
+    });
+  });
+
+  document.getElementById("btn-reset-layout")?.addEventListener("click", () => {
+    _cardLayout = { order: [..._DEFAULT_ORDER], hidden: new Set() };
+    _saveCardLayout();
+    _applyCardLayout();
+    _renderLayoutTab();
+  });
+}
+
 // ─── Settings Tab Navigation ─────────────────────────────────────────────────
 function setupSettingsTabs() {
   const tabs = [
-    { btn: "tab-general", content: "settings-tab-content-general" },
-    { btn: "tab-google",  content: "settings-tab-content-google" },
-    { btn: "tab-stocks",  content: "settings-tab-content-stocks" },
+    { btn: "tab-general",   content: "settings-tab-content-general" },
+    { btn: "tab-google",    content: "settings-tab-content-google" },
+    { btn: "tab-stocks",    content: "settings-tab-content-stocks" },
+    { btn: "tab-indmoney",  content: "settings-tab-content-indmoney" },
+    { btn: "tab-layout",    content: "settings-tab-content-layout" },
   ];
 
   tabs.forEach(({ btn, content }) => {
@@ -1136,8 +1279,10 @@ function setupSettingsTabs() {
       btnEl.classList.add("active");
       document.getElementById(content)?.classList.add("active");
 
-      if (btn === "tab-google")  loadAuthStatus();
-      if (btn === "tab-stocks")  loadStocksSheetStatus();
+      if (btn === "tab-google")    loadAuthStatus();
+      if (btn === "tab-stocks")    loadStocksSheetStatus();
+      if (btn === "tab-indmoney")  loadIndMoneyStatus();
+      if (btn === "tab-layout")    _renderLayoutTab();
     });
   });
 }
@@ -1149,38 +1294,45 @@ async function loadAuthStatus() {
   const btnConnect    = document.getElementById("btn-connect-google");
   const btnDisconnect = document.getElementById("btn-disconnect-google");
 
-  if (dot)   dot.className   = "auth-dot auth-dot--checking";
+  if (dot)   dot.className    = "auth-dot auth-dot--checking";
   if (label) label.textContent = "Checking…";
-  btnConnect?.setAttribute("style", "display:none");
+  btnConnect?.setAttribute("style",    "display:none");
   btnDisconnect?.setAttribute("style", "display:none");
 
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 5000);
+
   try {
-    const r    = await fetch("/api/config/auth/status");
+    const r    = await fetch("/api/config/auth/status", { signal: ctrl.signal });
+    clearTimeout(timer);
     const data = await r.json();
 
-    // Gateway offline or dashboard proxy error
     if (!r.ok || data.error) {
-      if (dot)   dot.className = "auth-dot auth-dot--err";
+      if (dot)   dot.className    = "auth-dot auth-dot--err";
       if (label) label.textContent = "Gateway offline — start the MCP gateway first";
+      btnConnect?.removeAttribute("style");
       return;
     }
 
     if (data.authenticated) {
-      if (dot)   dot.className = "auth-dot auth-dot--ok";
+      if (dot)   dot.className    = "auth-dot auth-dot--ok";
       if (label) label.textContent = "Connected — Google services authorised";
       btnDisconnect?.removeAttribute("style");
     } else if (!data.google_configured) {
-      if (dot)   dot.className = "auth-dot auth-dot--err";
-      if (label) label.textContent = "GOOGLE_CLIENT_ID / SECRET not set in gateway .env";
-      // No connect button — credentials must be set first
+      if (dot)   dot.className    = "auth-dot auth-dot--err";
+      if (label) label.textContent = "Google credentials not set in gateway .env";
     } else {
-      if (dot)   dot.className = "auth-dot auth-dot--err";
+      if (dot)   dot.className    = "auth-dot auth-dot--err";
       if (label) label.textContent = "Not connected — click Connect Google to authorise";
       btnConnect?.removeAttribute("style");
     }
-  } catch {
-    if (dot)   dot.className = "auth-dot auth-dot--err";
-    if (label) label.textContent = "Could not reach the MCP gateway";
+  } catch (err) {
+    clearTimeout(timer);
+    if (dot)   dot.className    = "auth-dot auth-dot--err";
+    if (label) label.textContent = err.name === "AbortError"
+      ? "Status check timed out — is the gateway running?"
+      : "Could not reach the MCP gateway";
+    btnConnect?.removeAttribute("style");
   }
 }
 
@@ -1205,25 +1357,38 @@ async function loadStocksSheetStatus() {
   const dot   = document.getElementById("stocks-sheet-dot");
   const label = document.getElementById("stocks-sheet-label");
 
-  if (dot)   dot.className = "auth-dot auth-dot--checking";
-  if (label) label.textContent = "Loading…";
+  if (dot)   dot.className    = "auth-dot auth-dot--checking";
+  if (label) label.textContent = "Checking…";
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 5000);
 
   try {
-    const r    = await fetch("/api/config/auth/status");
+    const r    = await fetch("/api/config/auth/status", { signal: ctrl.signal });
+    clearTimeout(timer);
     const data = await r.json();
 
+    if (!r.ok) {
+      if (dot)   dot.className    = "auth-dot auth-dot--err";
+      if (label) label.textContent = "Gateway offline — start the MCP gateway first";
+      return;
+    }
+
     if (data.spreadsheet_id) {
-      if (dot)   dot.className = "auth-dot auth-dot--ok";
+      if (dot)   dot.className    = "auth-dot auth-dot--ok";
       if (label) label.textContent = data.spreadsheet_name
         ? `Sheet: ${data.spreadsheet_name}`
         : `Sheet ID: ${data.spreadsheet_id}`;
     } else {
-      if (dot)   dot.className = "auth-dot auth-dot--err";
+      if (dot)   dot.className    = "auth-dot auth-dot--err";
       if (label) label.textContent = "No sheet configured — click Browse Sheets";
     }
-  } catch {
-    if (dot)   dot.className = "auth-dot auth-dot--err";
-    if (label) label.textContent = "Could not reach the MCP gateway";
+  } catch (err) {
+    clearTimeout(timer);
+    if (dot)   dot.className    = "auth-dot auth-dot--err";
+    if (label) label.textContent = err.name === "AbortError"
+      ? "Status check timed out — is the gateway running?"
+      : "Could not reach the MCP gateway";
   }
 }
 
@@ -1289,6 +1454,512 @@ function setupSheetPicker() {
   });
 }
 
+// ─── IndMoney Card + Settings ────────────────────────────────────────────────
+
+const NW_ASSET_COLORS = {
+  STOCK:          "#38bdf8", US_STOCK:      "#818cf8", US_STOCK_WALLET: "#6366f1",
+  MF:             "#a78bfa", EPF:           "#34d399", NPS:            "#22d3ee",
+  PPF:            "#4ade80", FD:            "#fbbf24", CRYPTO:         "#fb923c",
+  REAL_ESTATE:    "#94a3b8", VEHICLE:       "#64748b", ESOPS_RSUS:     "#c084fc",
+  SA:             "#f472b6", PHYSICAL_GOLD: "#fcd34d",
+};
+const NW_ASSET_LABELS = {
+  STOCK: "Indian Stocks", US_STOCK: "US Stocks", US_STOCK_WALLET: "US Wallet",
+  MF: "Mutual Funds",     EPF: "EPF",            NPS: "NPS",
+  PPF: "PPF",             FD: "Fixed Deposits",  CRYPTO: "Crypto",
+  REAL_ESTATE: "Real Estate", VEHICLE: "Vehicle",ESOPS_RSUS: "ESOPs / RSUs",
+  SA: "Savings A/C",      PHYSICAL_GOLD: "Physical Gold",
+};
+const NW_ASSET_ICONS = {
+  STOCK:"📈", US_STOCK:"🌐", US_STOCK_WALLET:"💵", MF:"💰", EPF:"🏦",
+  NPS:"🔵",  PPF:"💎",       FD:"🏛️",             CRYPTO:"₿", REAL_ESTATE:"🏠",
+  VEHICLE:"🚗", ESOPS_RSUS:"⭐", SA:"💳",          PHYSICAL_GOLD:"🪙",
+};
+
+let _nwActiveView = "chart";   // "chart" | "activity"
+let _nwLastSnapshot = null;    // previous snapshot for delta
+let _nwLastFetchTime = null;   // timestamp of last successful fetch
+let _nwLastData = null;        // full API response for re-render without re-fetch
+let _nwPrivacyMode = (() => {
+  try { return localStorage.getItem("nw_privacy_mode") !== "false"; }
+  catch { return true; }
+})();
+
+const _SVG_EYE_OPEN = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>`;
+const _SVG_EYE_OFF  = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>`;
+
+function _nwMask(val) {
+  return _nwPrivacyMode
+    ? `<span class="nw-privacy-mask">₹ ••••••</span>`
+    : formatCurrency(val);
+}
+
+function _nwMaskText(val) {
+  return _nwPrivacyMode ? "₹ ••••••" : formatCurrency(val);
+}
+
+function _syncNwPrivacyBtn() {
+  const btn = document.getElementById("nw-privacy-btn");
+  if (!btn) return;
+  btn.innerHTML = _nwPrivacyMode ? _SVG_EYE_OFF : _SVG_EYE_OPEN;
+  btn.title = _nwPrivacyMode ? "Show values" : "Hide values";
+}
+
+function _setupNwPrivacyToggle() {
+  _syncNwPrivacyBtn();
+  document.getElementById("nw-privacy-btn")?.addEventListener("click", () => {
+    _nwPrivacyMode = !_nwPrivacyMode;
+    try { localStorage.setItem("nw_privacy_mode", _nwPrivacyMode ? "true" : "false"); }
+    catch {}
+    _syncNwPrivacyBtn();
+    if (_nwLastData) {
+      if (_nwActiveView === "chart") renderNetworthChart(_nwLastData.snapshot || {});
+      else renderNetworthActivity(_nwLastData);
+    }
+  });
+}
+
+function _nwLabel(type) { return NW_ASSET_LABELS[type] || type; }
+function _nwColor(type) { return NW_ASSET_COLORS[type] || "#64748b"; }
+function _nwIcon(type)  { return NW_ASSET_ICONS[type]  || "📦"; }
+
+// ── donut chart (pure SVG) ──────────────────────────────────────────────────
+function _drawDonut(container, segments) {
+  const S = 200, cx = 100, cy = 100, OR = 82, IR = 50;
+  const total = segments.reduce((s, g) => s + g.v, 0);
+  if (!total) return;
+
+  let angle = -Math.PI / 2, paths = "", hoverItems = "";
+  segments.forEach((seg, i) => {
+    const frac = seg.v / total;
+    const sweep = frac * 2 * Math.PI;
+    const end = angle + sweep;
+    const [x1, y1] = [cx + OR * Math.cos(angle), cy + OR * Math.sin(angle)];
+    const [x2, y2] = [cx + OR * Math.cos(end),   cy + OR * Math.sin(end)];
+    const [x3, y3] = [cx + IR * Math.cos(end),   cy + IR * Math.sin(end)];
+    const [x4, y4] = [cx + IR * Math.cos(angle), cy + IR * Math.sin(angle)];
+    const la = sweep > Math.PI ? 1 : 0;
+    const d = `M${x1},${y1} A${OR},${OR} 0 ${la},1 ${x2},${y2} L${x3},${y3} A${IR},${IR} 0 ${la},0 ${x4},${y4}Z`;
+    paths += `<path d="${d}" fill="${seg.c}" class="nw-donut-seg" data-idx="${i}"
+      style="transition:opacity .2s,transform .2s;transform-origin:${cx}px ${cy}px;cursor:pointer"/>`;
+    const showPnl = seg.retPct !== undefined && Math.abs(seg.retPct) <= 200;
+    const pnlUp   = seg.ret >= 0;
+    hoverItems += `<div class="nw-donut-tt-row" data-idx="${i}">
+      <span class="nw-tt-dot" style="background:${seg.c}"></span>
+      <span class="nw-tt-label">${escHtml(_nwLabel(seg.t))}</span>
+      <span class="nw-tt-val">${_nwMask(seg.v)}</span>
+      <span class="nw-tt-pct">${(frac * 100).toFixed(1)}%</span>
+      ${showPnl ? `<span class="nw-tt-pnl ${pnlUp ? "up" : "down"}">${pnlUp ? "▲" : "▼"} ${Math.abs(seg.retPct).toFixed(1)}%</span>` : ""}
+    </div>`;
+    angle = end;
+  });
+
+  container.innerHTML = `
+    <div class="nw-donut-wrap">
+      <svg width="${S}" height="${S}" viewBox="0 0 ${S} ${S}" class="nw-donut-svg">
+        ${paths}
+        <text x="${cx}" y="${cy - 9}" text-anchor="middle" class="nw-donut-label">Net Worth</text>
+        <text x="${cx}" y="${cy + 10}" text-anchor="middle" class="nw-donut-val" id="nw-donut-center-val">…</text>
+      </svg>
+      <div class="nw-donut-legend" id="nw-donut-legend">${hoverItems}</div>
+    </div>`;
+
+  // interactions
+  const segs = container.querySelectorAll(".nw-donut-seg");
+  const rows = container.querySelectorAll(".nw-donut-tt-row");
+  const centerVal = container.querySelector("#nw-donut-center-val");
+
+  function highlight(idx) {
+    segs.forEach((s, i) => s.style.opacity = (i === idx) ? "1" : "0.45");
+    rows.forEach((r, i) => r.classList.toggle("active", i === idx));
+    if (centerVal && idx >= 0) centerVal.textContent = _nwMaskText(segments[idx].v);
+  }
+  function reset() {
+    segs.forEach(s => s.style.opacity = "1");
+    rows.forEach(r => r.classList.remove("active"));
+    if (centerVal) centerVal.textContent = "";
+  }
+  segs.forEach((s, i) => {
+    s.addEventListener("mouseenter", () => highlight(i));
+    s.addEventListener("mouseleave", reset);
+    s.addEventListener("touchstart", (e) => { e.preventDefault(); highlight(i); }, { passive: false });
+  });
+  rows.forEach((r, i) => {
+    r.addEventListener("mouseenter", () => highlight(i));
+    r.addEventListener("mouseleave", reset);
+  });
+}
+
+// ── View 1: Chart ───────────────────────────────────────────────────────────
+function renderNetworthChart(snap) {
+  const el = document.getElementById("indmoney-content");
+  if (!el) return;
+
+  const invested = snap.total_invested || 0;
+  const current  = snap.total_current_value || snap.total_networth || 0;
+  const gain     = current - invested;
+  const gainPct  = invested > 0 ? (gain / invested) * 100 : 0;
+  const isUp     = gain >= 0;
+
+  const invs = (snap.investments || [])
+    .filter(i => i.current_value > 0)
+    .sort((a, b) => b.current_value - a.current_value);
+
+  const segments = invs.map(i => ({
+    t: i.asset_type,
+    v: i.current_value,
+    c: _nwColor(i.asset_type),
+    ret: (i.return !== undefined ? i.return : (i.current_value - (i.invested_value || 0))),
+    retPct: (i.return_percentage !== undefined ? i.return_percentage : 0),
+  }));
+
+  const syncLabel = _nwLastFetchTime
+    ? _nwLastFetchTime.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+    : null;
+
+  el.innerHTML = `
+    <div class="nw-summary-row">
+      <div class="nw-total-block">
+        <span class="nw-total-label">Total Net Worth</span>
+        <span class="nw-total-amount">${_nwMask(current)}</span>
+        <span class="nw-pnl-badge ${isUp ? "up" : "down"}">
+          ${isUp ? "▲" : "▼"} ${_nwMask(Math.abs(gain))}
+          <span class="nw-pnl-pct">(${isUp ? "+" : ""}${gainPct.toFixed(2)}%)</span>
+        </span>
+        ${syncLabel ? `<span class="nw-sync-time">Synced ${syncLabel}</span>` : ""}
+      </div>
+    </div>
+    <div id="nw-donut-container"></div>`;
+
+  _drawDonut(document.getElementById("nw-donut-container"), segments);
+}
+
+// ── View 2: Activity ────────────────────────────────────────────────────────
+function renderNetworthActivity(data) {
+  const el = document.getElementById("indmoney-content");
+  if (!el) return;
+
+  const snap      = data.snapshot || {};
+  const stockSips = data.stock_sips || [];
+  const mfSips    = data.mf_sips   || [];
+  const allSips   = [...stockSips, ...mfSips];
+
+  // Delta vs previous snapshot (localStorage)
+  let deltaHtml = "";
+  const prev = (() => {
+    try { return JSON.parse(localStorage.getItem("nw_prev_snapshot") || "null"); } catch { return null; }
+  })();
+  if (prev && prev.total_networth && snap.total_networth) {
+    const diff   = snap.total_networth - prev.total_networth;
+    const isUp   = diff >= 0;
+    const ago    = prev.ts ? _timeAgo(prev.ts) : "last check";
+    deltaHtml = `
+      <div class="nw-delta-row">
+        <span class="nw-delta-label">Since ${ago}</span>
+        <span class="nw-delta-val ${isUp ? "up" : "down"}">
+          ${isUp ? "▲" : "▼"} ${_nwMask(Math.abs(diff))}
+        </span>
+      </div>`;
+  }
+
+  // Top 3 gainers & losers
+  const invs = (snap.investments || []).filter(i => i.current_value > 0 && i.invested_value > 0 && i.return_percentage !== 0);
+  const gainers = [...invs].sort((a, b) => b.return_percentage - a.return_percentage).slice(0, 3);
+  const losers  = [...invs].sort((a, b) => a.return_percentage - b.return_percentage).slice(0, 3);
+
+  const _moverRow = (inv, isGain) => `
+    <div class="nw-mover-row">
+      <span class="nw-mover-icon">${_nwIcon(inv.asset_type)}</span>
+      <span class="nw-mover-name">${escHtml(_nwLabel(inv.asset_type))}</span>
+      <span class="nw-mover-pct ${isGain ? "up" : "down"}">${isGain ? "+" : ""}${inv.return_percentage.toFixed(1)}%</span>
+    </div>`;
+
+  // All assets as bars
+  const sorted = (snap.investments || []).filter(i => i.current_value > 0).sort((a, b) => b.current_value - a.current_value);
+  const maxVal = sorted[0]?.current_value || 1;
+  const assetBars = sorted.map(inv => {
+    const pct  = (inv.current_value / maxVal) * 100;
+    const ret  = inv.return || 0;
+    const isUp = ret >= 0;
+    return `
+      <div class="nw-asset-row">
+        <span class="nw-asset-icon">${_nwIcon(inv.asset_type)}</span>
+        <div class="nw-asset-info">
+          <div class="nw-asset-top">
+            <span class="nw-asset-name">${escHtml(_nwLabel(inv.asset_type))}</span>
+            <span class="nw-asset-val">${_nwMask(inv.current_value)}</span>
+          </div>
+          <div class="nw-asset-bar-track">
+            <div class="nw-asset-bar-fill" style="width:${pct.toFixed(1)}%;background:${_nwColor(inv.asset_type)}"></div>
+          </div>
+          ${ret !== 0 ? `<div class="nw-asset-ret ${isUp ? "up" : "down"}">${isUp ? "▲" : "▼"} ${_nwMask(Math.abs(ret))} (${isUp ? "+" : ""}${inv.return_percentage.toFixed(1)}%)</div>` : ""}
+        </div>
+      </div>`;
+  }).join("");
+
+  // SIP section
+  const sipHtml = allSips.length === 0
+    ? `<p class="nw-empty-note">No active SIPs found.</p>`
+    : allSips.map(s => `
+        <div class="nw-sip-row">
+          <span class="nw-sip-name">${escHtml(s.name || s.scheme_name || s.symbol || "SIP")}</span>
+          <span class="nw-sip-amt">${_nwMask(s.amount || s.installment_amount || 0)}</span>
+          ${s.next_date || s.sip_date ? `<span class="nw-sip-date">${escHtml(s.next_date || s.sip_date)}</span>` : ""}
+        </div>`).join("");
+
+  // FD / PPF / EPF deposits (assets with known "deposit" nature)
+  const depositTypes = ["FD", "PPF", "EPF", "SA"];
+  const deposits = (snap.investments || []).filter(i => depositTypes.includes(i.asset_type));
+  const depositHtml = deposits.length === 0
+    ? `<p class="nw-empty-note">No deposit data available.</p>`
+    : deposits.map(d => `
+        <div class="nw-deposit-row">
+          <span class="nw-deposit-icon">${_nwIcon(d.asset_type)}</span>
+          <div class="nw-deposit-info">
+            <span class="nw-deposit-name">${_nwLabel(d.asset_type)}</span>
+            <span class="nw-deposit-val">${_nwMask(d.current_value)}</span>
+          </div>
+          ${d.return !== 0 ? `<span class="nw-deposit-ret ${d.return > 0 ? "up" : "down"}">${d.return > 0 ? "+" : ""}${d.return_percentage?.toFixed(1)}%</span>` : ""}
+        </div>`).join("");
+
+  el.innerHTML = `
+    ${deltaHtml}
+
+    ${gainers.length ? `
+    <div class="nw-section">
+      <div class="nw-section-title">Top Performers</div>
+      ${gainers.map(i => _moverRow(i, true)).join("")}
+    </div>` : ""}
+
+    ${losers.filter(i => i.return_percentage < 0).length ? `
+    <div class="nw-section">
+      <div class="nw-section-title">Underperformers</div>
+      ${losers.filter(i => i.return_percentage < 0).map(i => _moverRow(i, false)).join("")}
+    </div>` : ""}
+
+    <div class="nw-section">
+      <div class="nw-section-title">Asset Breakdown</div>
+      ${assetBars}
+    </div>
+
+    <div class="nw-section">
+      <div class="nw-section-title">SIPs</div>
+      ${sipHtml}
+    </div>
+
+    <div class="nw-section">
+      <div class="nw-section-title">Deposits &amp; Savings</div>
+      ${depositHtml}
+    </div>`;
+}
+
+function _timeAgo(ts) {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1)  return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+async function fetchIndMoney() {
+  const el = document.getElementById("indmoney-content");
+  if (!el) return;
+
+  try {
+    const r = await fetch("/api/indmoney/overview");
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      el.innerHTML = getMcpOfflineHTML("IndMoney Networth");
+      return;
+    }
+    const data = await r.json();
+    const snap = data.snapshot || {};
+
+    if (!snap.total_networth && !snap.total_current_value) {
+      el.innerHTML = getMcpOfflineHTML("IndMoney Networth");
+      return;
+    }
+
+    // Store snapshot for delta calculation
+    const prev = (() => {
+      try { return JSON.parse(localStorage.getItem("nw_prev_snapshot") || "null"); } catch { return null; }
+    })();
+    if (!prev || Math.abs((prev.total_networth || 0) - snap.total_networth) > 0) {
+      if (_nwLastSnapshot) {
+        localStorage.setItem("nw_prev_snapshot", JSON.stringify({ ..._nwLastSnapshot, ts: Date.now() }));
+      }
+    }
+    _nwLastSnapshot = snap;
+    _nwLastFetchTime = new Date();
+    _nwLastData = data;
+
+    if (_nwActiveView === "chart") {
+      renderNetworthChart(snap);
+    } else {
+      renderNetworthActivity(data);
+    }
+  } catch (err) {
+    if (el) el.innerHTML = getMcpOfflineHTML("IndMoney Networth");
+  }
+}
+
+function _setupNetworthViewToggle() {
+  const btnChart    = document.getElementById("nw-btn-chart");
+  const btnActivity = document.getElementById("nw-btn-activity");
+  if (!btnChart || !btnActivity) return;
+
+  function switchTo(view) {
+    _nwActiveView = view;
+    btnChart.classList.toggle("active", view === "chart");
+    btnActivity.classList.toggle("active", view === "activity");
+    btnChart.setAttribute("aria-pressed", view === "chart");
+    btnActivity.setAttribute("aria-pressed", view === "activity");
+    if (_nwLastData) {
+      if (view === "chart") renderNetworthChart(_nwLastData.snapshot || {});
+      else renderNetworthActivity(_nwLastData);
+    } else {
+      fetchIndMoney();
+    }
+  }
+
+  btnChart.addEventListener("click",    () => switchTo("chart"));
+  btnActivity.addEventListener("click", () => switchTo("activity"));
+}
+
+function renderMarkdownText(text) {
+  return text
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(/\n\n/g, "</p><p>")
+    .replace(/\n/g, "<br>")
+    .replace(/^(.*)$/, "<p>$1</p>");
+}
+
+async function loadIndMoneyStatus() {
+  const dot     = document.getElementById("indmoney-status-dot");
+  const label   = document.getElementById("indmoney-status-label");
+  const btnConn = document.getElementById("btn-connect-indmoney");
+  const btnDisc = document.getElementById("btn-disconnect-indmoney");
+
+  if (dot) dot.className = "auth-dot auth-dot--checking";
+  if (label) label.textContent = "Checking…";
+  btnConn?.setAttribute("style", "display:none");
+  btnDisc?.setAttribute("style", "display:none");
+
+  try {
+    const r    = await fetch("/api/config/indmoney/status");
+    const data = await r.json();
+
+    // Pre-fill URL
+    const urlInput = document.getElementById("indmoney-url-input");
+    if (urlInput && data.url) urlInput.value = data.url;
+
+    if (!r.ok) {
+      if (dot)   dot.className = "auth-dot auth-dot--err";
+      if (label) label.textContent = "Gateway offline — start the MCP gateway first";
+      return;
+    }
+
+    if (data.connected && data.auth_configured) {
+      if (dot)   dot.className = "auth-dot auth-dot--ok";
+      if (label) label.textContent = `Connected — ${data.tools?.length ?? 0} tools available`;
+      btnDisc?.removeAttribute("style");
+      _populateIndMoneyToolPicker(data.tools || [], data.display_tool);
+    } else if (!data.auth_configured) {
+      if (dot)   dot.className = "auth-dot auth-dot--err";
+      if (label) label.textContent = "Not connected — click Connect IndMoney to authorise with your IndMoney account";
+      btnConn?.removeAttribute("style");
+    } else {
+      if (dot)   dot.className = "auth-dot auth-dot--err";
+      if (label) label.textContent = data.error || "Connection failed — try reconnecting";
+      btnConn?.removeAttribute("style");
+    }
+  } catch {
+    if (dot)   dot.className = "auth-dot auth-dot--err";
+    if (label) label.textContent = "Could not reach gateway";
+  }
+}
+
+function _populateIndMoneyToolPicker(tools, selectedTool) {
+  const wrap = document.getElementById("indmoney-tool-picker");
+  const sel  = document.getElementById("indmoney-tool-select");
+  if (!wrap || !sel) return;
+
+  sel.innerHTML = `<option value="">-- pick a tool to show on card --</option>` +
+    tools.map(t => `<option value="${escHtml(t)}"${t === selectedTool ? " selected" : ""}>${escHtml(t)}</option>`).join("");
+  wrap.style.display = "block";
+}
+
+function setupIndMoneySettings() {
+  document.getElementById("btn-indmoney-refresh-status")?.addEventListener("click", loadIndMoneyStatus);
+
+  document.getElementById("btn-connect-indmoney")?.addEventListener("click", () => {
+    const gatewayBase = window._MCP_GATEWAY_URL || "http://127.0.0.1:8000";
+    window.open(`${gatewayBase}/auth/indmoney`, "_blank", "noopener,noreferrer");
+  });
+
+  document.getElementById("btn-disconnect-indmoney")?.addEventListener("click", async () => {
+    if (!confirm("Disconnect IndMoney? You will need to re-authorise to use IndMoney tools.")) return;
+    await fetch("/api/config/indmoney/token", { method: "DELETE" });
+    loadIndMoneyStatus();
+  });
+
+  document.getElementById("btn-indmoney-save-url")?.addEventListener("click", async () => {
+    const btn = document.getElementById("btn-indmoney-save-url");
+    if (btn) btn.textContent = "Saving…";
+    try {
+      const url = document.getElementById("indmoney-url-input")?.value?.trim();
+      if (!url) { alert("Please enter a URL."); return; }
+      await fetch("/api/config/indmoney/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      await loadIndMoneyStatus();
+    } finally {
+      if (btn) btn.textContent = "Save URL";
+    }
+  });
+
+  document.getElementById("btn-indmoney-save-tool")?.addEventListener("click", async () => {
+    const btn = document.getElementById("btn-indmoney-save-tool");
+    if (btn) btn.textContent = "Saving…";
+    try {
+      const display_tool = document.getElementById("indmoney-tool-select")?.value || "";
+      const r = await fetch("/api/config/indmoney/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ display_tool }),
+      });
+      const data = await r.json();
+      if (display_tool) {
+        fetchIndMoney();
+        alert("Saved! IndMoney card will now show: " + display_tool);
+      }
+    } finally {
+      if (btn) btn.textContent = "Save Tool";
+    }
+  });
+
+  const refreshIcon = document.getElementById("indmoney-refresh-icon");
+  document.getElementById("indmoney-refresh-btn")?.addEventListener("click", async () => {
+    if (refreshIcon) refreshIcon.classList.add("spin");
+    await fetchIndMoney();
+    if (refreshIcon) refreshIcon.classList.remove("spin");
+  });
+}
+
+// ─── OAuth callback message listener ────────────────────────────────────────
+window.addEventListener("message", (e) => {
+  if (e.data?.type === "indmoney_connected") {
+    loadIndMoneyStatus();
+    fetchIndMoney();
+  }
+});
+
 // ─── Initialize Application ──────────────────────────────────────────────────
 async function init() {
   // Fetch gateway URL so auth redirect can target it directly
@@ -1300,10 +1971,15 @@ async function init() {
     window._MCP_GATEWAY_URL = "http://127.0.0.1:8000";
   }
 
+  _loadCardLayout();
+  _applyCardLayout();
   setupEventListeners();
   setupSettingsTabs();
   setupGoogleAuthButtons();
   setupSheetPicker();
+  setupIndMoneySettings();
+  _setupNetworthViewToggle();
+  _setupNwPrivacyToggle();
   updateClock();
   setInterval(updateClock, 1000);
   loadLocation();

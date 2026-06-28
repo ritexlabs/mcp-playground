@@ -17,9 +17,20 @@ const PORT = process.env.PORT || 8080;
 
 const MCP_GATEWAY_URL = process.env.MCP_GATEWAY_URL || "http://127.0.0.1:8000";
 
-app.use(cors());
+const DASHBOARD_ORIGIN = process.env.DASHBOARD_ORIGIN || "http://localhost:8080";
+
+app.use(cors({ origin: DASHBOARD_ORIGIN }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
+
+// Security headers
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
 
 let mcpClient = null;
 let isConnected = false;
@@ -274,6 +285,57 @@ app.post("/api/config/sheets/:id", async (req, res) => {
     const r = await fetch(`${MCP_GATEWAY_URL}/config/sheets/${req.params.id}`, {
       method: "POST",
     });
+    res.status(r.status).json(await r.json());
+  } catch (err) {
+    res.status(503).json({ error: "Gateway unreachable", details: err.message });
+  }
+});
+
+// ── IndMoney proxy ────────────────────────────────────────────────────────────
+
+app.get("/api/indmoney", async (req, res) => {
+  try {
+    const r = await fetch(`${MCP_GATEWAY_URL}/indmoney/data`);
+    res.status(r.status).json(await r.json());
+  } catch (err) {
+    res.status(503).json({ error: "Gateway unreachable", details: err.message });
+  }
+});
+
+app.get("/api/indmoney/overview", async (req, res) => {
+  try {
+    const r = await fetch(`${MCP_GATEWAY_URL}/indmoney/overview`);
+    res.status(r.status).json(await r.json());
+  } catch (err) {
+    res.status(503).json({ error: "Gateway unreachable", details: err.message });
+  }
+});
+
+app.get("/api/config/indmoney/status", async (req, res) => {
+  try {
+    const r = await fetch(`${MCP_GATEWAY_URL}/config/indmoney/status`);
+    res.status(r.status).json(await r.json());
+  } catch (err) {
+    res.status(503).json({ error: "Gateway unreachable", details: err.message });
+  }
+});
+
+app.post("/api/config/indmoney/save", async (req, res) => {
+  try {
+    const r = await fetch(`${MCP_GATEWAY_URL}/config/indmoney/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body),
+    });
+    res.status(r.status).json(await r.json());
+  } catch (err) {
+    res.status(503).json({ error: "Gateway unreachable", details: err.message });
+  }
+});
+
+app.delete("/api/config/indmoney/token", async (req, res) => {
+  try {
+    const r = await fetch(`${MCP_GATEWAY_URL}/auth/indmoney/token`, { method: "DELETE" });
     res.status(r.status).json(await r.json());
   } catch (err) {
     res.status(503).json({ error: "Gateway unreachable", details: err.message });

@@ -38,12 +38,28 @@ class Settings(BaseSettings):
     MYSTOCKS_SPREADSHEET_ID: str | None = None
     MYSTOCKS_RANGE: str = "A:Z"
 
+    INDMONEY_MCP_URL: str | None = "https://mcp.indmoney.com/mcp"
+    INDMONEY_DISPLAY_TOOL: str | None = None
+    INDMONEY_SCOPES: str = "portfolio:read market:read"
+    # Auto-populated by the gateway — do not set manually
+    INDMONEY_CLIENT_ID: str | None = None
+    INDMONEY_CLIENT_SECRET: str | None = None
+    INDMONEY_OAUTH_TOKEN: str | None = None
+
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_REQUESTS_PER_MINUTE: int = 60
     TOKEN_EXPIRY_WARNING_HOURS: int = 24
 
+    # Origin of the dashboard UI — used for CORS and postMessage target
+    DASHBOARD_ORIGIN: str = "http://localhost:8080"
+    # How long (seconds) an OAuth state token stays valid before expiry
+    AUTH_FLOW_TTL_SECONDS: int = 300
+
     def is_google_configured(self) -> bool:
         return bool(self.GOOGLE_CLIENT_ID and self.GOOGLE_CLIENT_SECRET)
+
+    def is_indmoney_configured(self) -> bool:
+        return bool(self.INDMONEY_MCP_URL)
 
     def is_service_configured(self, service: str) -> bool:
         if service in ("gmail", "calendar", "sheets"):

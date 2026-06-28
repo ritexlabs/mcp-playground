@@ -35,10 +35,12 @@ cd mcp-gateway
 cp .env.example .env    # copy the template
 ```
 
-Edit `.env` and fill in:
+Edit `.env` and fill in your values (use `.env.example` as a reference — never paste real secrets into `.env.example`):
 ```
-GOOGLE_CLIENT_ID=your_client_id_here
-GOOGLE_CLIENT_SECRET=your_client_secret_here
+GOOGLE_CLIENT_ID=<your-client-id>.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=<your-client-secret>
+# Optional: restrict CORS to the dashboard origin (default is http://localhost:8080)
+DASHBOARD_ORIGIN=http://localhost:8080
 ```
 
 ### Start / Stop
@@ -208,8 +210,9 @@ All PRs target `main`. Commit messages follow Conventional Commits (`feat:`, `fi
 
 ## Security Notes
 
-- Never commit `.env` or any file with real credentials.
-- The pre-commit hook at `.git/hooks/pre-commit` will block staged `.env*` files.
-- `GOOGLE_OAUTH_TOKEN` in `.env` is written automatically by the gateway — it is safe to leave it there but do not commit it.
-- `CLAUDE.md` is gitignored (contains local AI assistant context).
+- Never commit `.env` or any file with real credentials. `.env` is gitignored.
+- `.env.example` must contain only placeholder values — no real IDs, secrets, or tokens.
+- `GOOGLE_OAUTH_TOKEN`, `INDMONEY_CLIENT_ID`, `INDMONEY_CLIENT_SECRET`, `INDMONEY_OAUTH_TOKEN` in `.env` are written automatically by the gateway — safe to leave there but never commit.
+- `DASHBOARD_ORIGIN` must be set consistently in both `mcp-gateway/.env` and `daily-briefing-dashboard/.env` — the gateway enforces it for CORS and the IndMoney OAuth success page uses it for `postMessage`.
 - Before pushing, inspect `git diff origin/HEAD...HEAD` and confirm no secrets are present.
+- If a secret is accidentally committed, remove it from history immediately and rotate the credential — do not just delete the value in a new commit.

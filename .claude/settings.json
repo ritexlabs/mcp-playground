@@ -10,7 +10,24 @@
       "Bash(git check-ignore *)",
       "Bash(.venv/bin/python3 -)",
       "Bash(curl -s http://localhost:8080/api/calendar)",
-      "Bash(curl -s http://localhost:8080/api/gmail)"
+      "Bash(curl -s http://localhost:8080/api/gmail)",
+      "Bash(.venv/bin/python -c \"from src.main import app; print\\('main.py OK'\\)\")",
+      "Bash(.venv/bin/python -c \"from src.services.downstream.indmoney_client import test_connection; print\\('indmoney_client OK'\\)\")",
+      "Bash(.venv/bin/python -c ' *)",
+      "Bash(ps -p 74836 -o pid,command)",
+      "Bash(kill 74836 74863)",
+      "Bash(.venv/bin/uvicorn src.main:app --host 127.0.0.1 --port 8000 --log-level info)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(curl -s http://127.0.0.1:8000/health)",
+      "Bash(curl -sv http://127.0.0.1:8000/auth/indmoney)",
+      "Bash(curl -s http://localhost:8080/api/status)",
+      "Bash(curl -s -X POST http://localhost:8080/api/config/indmoney/save -H 'Content-Type: application/json' -d '{\"display_tool\": \"networth_snapshot\"}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s http://localhost:8080/api/indmoney)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s http://127.0.0.1:8000/indmoney/overview)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); invs=d.get\\('snapshot',{}\\).get\\('investments',[]\\); [print\\(f\\\\\"{i.get\\('asset_type','?'\\):20} curr={i.get\\('current_value',0\\):>12.2f} inv={i.get\\('invested_value',0\\):>12.2f} ret={i.get\\('return',0\\):>12.2f} ret_pct={i.get\\('return_percentage','N/A'\\)}\\\\\"\\) for i in invs]\")",
+      "Bash(curl -s http://localhost:8080/api/config/auth/status)"
     ]
   }
 }

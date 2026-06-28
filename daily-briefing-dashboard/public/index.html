@@ -89,6 +89,8 @@
                   <button id="tab-general" class="tab-btn active" type="button">Location</button>
                   <button id="tab-google" class="tab-btn" type="button">Google</button>
                   <button id="tab-stocks" class="tab-btn" type="button">Stocks</button>
+                  <button id="tab-indmoney" class="tab-btn" type="button">IndMoney</button>
+                  <button id="tab-layout" class="tab-btn" type="button">Layout</button>
                 </div>
               </div>
 
@@ -113,14 +115,15 @@
 
                 <div id="google-auth-status" class="auth-status-box">
                   <div class="auth-status-row">
-                    <span id="auth-status-icon" class="auth-dot auth-dot--checking"></span>
-                    <span id="auth-status-label">Checking…</span>
+                    <span id="auth-status-icon" class="auth-dot"></span>
+                    <span id="auth-status-label">—</span>
                   </div>
                 </div>
 
                 <div class="dialog-actions" style="margin-top:1.25rem">
+                  <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
                   <button type="button" class="btn btn-secondary" id="btn-refresh-auth">Refresh Status</button>
-                  <button type="button" class="btn btn-primary" id="btn-connect-google">Connect Google</button>
+                  <button type="button" class="btn btn-primary" id="btn-connect-google" style="display:none">Connect Google</button>
                   <button type="button" class="btn btn-danger" id="btn-disconnect-google" style="display:none">Disconnect</button>
                 </div>
 
@@ -135,12 +138,13 @@
 
                 <div id="stocks-current-sheet" class="auth-status-box">
                   <div class="auth-status-row">
-                    <span class="auth-dot auth-dot--checking" id="stocks-sheet-dot"></span>
-                    <span id="stocks-sheet-label">Loading…</span>
+                    <span class="auth-dot" id="stocks-sheet-dot"></span>
+                    <span id="stocks-sheet-label">—</span>
                   </div>
                 </div>
 
-                <div class="sheet-picker-row" style="margin-top:1rem">
+                <div class="dialog-actions" style="margin-top:1rem">
+                  <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
                   <button type="button" class="btn btn-secondary" id="btn-load-sheets">Browse Sheets</button>
                 </div>
 
@@ -154,6 +158,57 @@
                     <button type="button" class="btn btn-primary" id="btn-save-sheet">Save Sheet</button>
                   </div>
                 </div>
+              </div>
+
+              <!-- Tab Content: Layout -->
+              <div id="settings-tab-content-layout" class="tab-content">
+                <p class="subtle-text">Drag cards to reorder. Toggle the switch to show or hide a card.</p>
+                <div class="layout-list" id="layout-cards-list"></div>
+                <div class="dialog-actions" style="margin-top:1rem">
+                  <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
+                  <button type="button" class="btn btn-danger" id="btn-reset-layout">Reset to Default</button>
+                </div>
+              </div>
+
+              <!-- Tab Content: IndMoney -->
+              <div id="settings-tab-content-indmoney" class="tab-content">
+                <p class="subtle-text">Connect to IndMoney MCP server via OAuth to fetch your investments and net worth.</p>
+
+                <div id="indmoney-status-box" class="auth-status-box">
+                  <div class="auth-status-row">
+                    <span class="auth-dot" id="indmoney-status-dot"></span>
+                    <span id="indmoney-status-label">—</span>
+                  </div>
+                </div>
+
+                <div class="dialog-actions" style="margin-top:1.25rem">
+                  <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
+                  <button type="button" class="btn btn-secondary" id="btn-indmoney-refresh-status">Refresh Status</button>
+                  <button type="button" class="btn btn-primary" id="btn-connect-indmoney" style="display:none">Connect IndMoney</button>
+                  <button type="button" class="btn btn-danger" id="btn-disconnect-indmoney" style="display:none">Disconnect</button>
+                </div>
+
+                <div style="margin-top:1.25rem">
+                  <div class="input-group">
+                    <label for="indmoney-url-input">MCP Server URL</label>
+                    <input type="text" id="indmoney-url-input" value="https://mcp.indmoney.com/mcp" autocomplete="off">
+                  </div>
+                  <button type="button" class="btn btn-secondary" id="btn-indmoney-save-url" style="margin-top:0.5rem">Save URL</button>
+                </div>
+
+                <div id="indmoney-tool-picker" style="display:none;margin-top:1rem">
+                  <label for="indmoney-tool-select">Dashboard card — display tool</label>
+                  <select id="indmoney-tool-select" class="cfg-select">
+                    <option value="">-- pick a tool to show on the card --</option>
+                  </select>
+                  <button type="button" class="btn btn-primary" id="btn-indmoney-save-tool" style="margin-top:0.5rem">Save Tool</button>
+                </div>
+
+                <p class="subtle-text" style="margin-top:1rem;font-size:0.78rem">
+                  Click <strong>Connect IndMoney</strong> to sign in with your IndMoney mobile number,
+                  OTP, and MPIN. No developer registration needed — the gateway registers itself automatically.
+                  All 14 IndMoney tools are also available in <strong>Claude Desktop</strong> once connected.
+                </p>
               </div>
             </div>
           </dialog>
@@ -247,6 +302,43 @@
             <div class="pnl-summary">
               <span class="pnl-label">Overall P&amp;L</span>
               <span id="total-pnl" class="pnl-value">--</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- My Networth Card -->
+        <section class="dashboard-card glass-panel indmoney-card" id="indmoney-card" aria-labelledby="indmoney-title">
+          <div class="card-header">
+            <h2 id="indmoney-title" class="card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="card-icon" width="22" height="22">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              My Networth
+            </h2>
+            <div class="nw-header-right">
+              <div class="nw-view-toggle" role="group" aria-label="View mode">
+                <button class="nw-view-btn active" id="nw-btn-chart" title="Chart view" aria-pressed="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
+                  Chart
+                </button>
+                <button class="nw-view-btn" id="nw-btn-activity" title="Activity view" aria-pressed="false">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                  Activity
+                </button>
+              </div>
+              <button id="nw-privacy-btn" class="refresh-btn nw-privacy-btn" title="Toggle value visibility" aria-label="Toggle value visibility"></button>
+              <button id="indmoney-refresh-btn" class="refresh-btn" title="Refresh" aria-label="Refresh networth">
+                <svg id="indmoney-refresh-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div id="indmoney-content" class="card-body indmoney-body">
+            <div class="skeleton-loader">
+              <div class="skeleton-line w-full mb-3"></div>
+              <div class="skeleton-line w-4/5 mb-3"></div>
+              <div class="skeleton-line w-3/4"></div>
             </div>
           </div>
         </section>
