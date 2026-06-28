@@ -4,7 +4,13 @@
       "Bash(git:*)",
       "Bash(ls:*)",
       "Bash(find:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(python3 -)",
+      "Bash(curl -s http://127.0.0.1:8000/auth/status)",
+      "Bash(git check-ignore *)",
+      "Bash(.venv/bin/python3 -)",
+      "Bash(curl -s http://localhost:8080/api/calendar)",
+      "Bash(curl -s http://localhost:8080/api/gmail)"
     ]
   }
 }

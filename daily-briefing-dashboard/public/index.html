@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Daily Briefing | Personal Command Center</title>
+  <meta name="description" content="A secure, personalized day briefing dashboard featuring real-time weather, upcoming calendar events, and your live stock portfolio.">
+  
+  <!-- Typography & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Animated Background Orbs -->
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+  <div class="glow-orb orb-3"></div>
+
+  <!-- Main Container -->
+  <div class="dashboard-wrapper">
+    <!-- Header Section -->
+    <header class="dashboard-header glass-panel" id="main-header">
+      <div class="header-left">
+        <h1 id="greeting-text">Welcome back</h1>
+        <p id="date-text" class="subtle-text">Loading today's date...</p>
+      </div>
+      <div class="header-right">
+        <!-- Live Clock -->
+        <div class="clock-container">
+          <span id="digital-clock">00:00:00</span>
+          <span id="clock-period" class="subtle-text">--</span>
+        </div>
+        <!-- Refresh Button -->
+        <button id="refresh-btn" class="icon-button" aria-label="Refresh Dashboard">
+          <svg class="refresh-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.253 8H18" />
+          </svg>
+          <span>Refresh</span>
+        </button>
+        <!-- Settings Button -->
+        <button id="settings-btn" class="icon-button" aria-label="Open Settings">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span>Settings</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Dashboard Content Grid -->
+    <main class="dashboard-grid">
+      <!-- Left Column: Weather and Calendar -->
+      <div class="grid-column">
+        <!-- Weather Card -->
+        <section class="dashboard-card glass-panel" id="weather-card" aria-labelledby="weather-title">
+          <div class="card-header">
+            <h2 id="weather-title" class="card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="card-icon" width="22" height="22">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l-.707-.707M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Weather Conditions
+            </h2>
+            <div class="location-picker">
+              <span id="location-name">Detecting...</span>
+              <button id="change-location-btn" class="text-link-btn" aria-label="Change location">Change</button>
+            </div>
+          </div>
+          
+          <div id="weather-content" class="card-body">
+            <!-- Skeleton Loader -->
+            <div class="skeleton-loader">
+              <div class="skeleton-circle"></div>
+              <div class="skeleton-lines">
+                <div class="skeleton-line w-full"></div>
+                <div class="skeleton-line w-2/3"></div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Unified Settings Config Dialog (Hidden by default) -->
+          <dialog id="settings-dialog" class="glass-dialog settings-dialog-panel">
+            <div class="settings-wrapper">
+              <div class="settings-header-block">
+                <h3>Dashboard Settings</h3>
+                <div class="settings-tabs">
+                  <button id="tab-general" class="tab-btn active" type="button">Location</button>
+                  <button id="tab-google" class="tab-btn" type="button">Google</button>
+                  <button id="tab-stocks" class="tab-btn" type="button">Stocks</button>
+                </div>
+              </div>
+
+              <!-- Tab Content: Location -->
+              <div id="settings-tab-content-general" class="tab-content active">
+                <form id="settings-location-form">
+                  <p class="subtle-text">Configure your current location to fetch regional weather conditions.</p>
+                  <div class="input-group">
+                    <label for="settings-city-input">Current City / Location</label>
+                    <input type="text" id="settings-city-input" placeholder="e.g. Bengaluru, IN" autocomplete="off" required>
+                  </div>
+                  <div class="dialog-actions">
+                    <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
+                    <button type="submit" class="btn btn-primary">Save Location</button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Tab Content: Google Auth -->
+              <div id="settings-tab-content-google" class="tab-content">
+                <p class="subtle-text">Authorise Google access for Gmail, Calendar, Drive and Sheets.</p>
+
+                <div id="google-auth-status" class="auth-status-box">
+                  <div class="auth-status-row">
+                    <span id="auth-status-icon" class="auth-dot auth-dot--checking"></span>
+                    <span id="auth-status-label">Checking…</span>
+                  </div>
+                </div>
+
+                <div class="dialog-actions" style="margin-top:1.25rem">
+                  <button type="button" class="btn btn-secondary" id="btn-refresh-auth">Refresh Status</button>
+                  <button type="button" class="btn btn-primary" id="btn-connect-google">Connect Google</button>
+                  <button type="button" class="btn btn-danger" id="btn-disconnect-google" style="display:none">Disconnect</button>
+                </div>
+
+                <p class="subtle-text" style="margin-top:1rem;font-size:0.78rem">
+                  Clicking <strong>Connect Google</strong> opens a browser tab. Sign in, grant all permissions, then close the tab and click <strong>Refresh Status</strong>.
+                </p>
+              </div>
+
+              <!-- Tab Content: Stocks Sheet -->
+              <div id="settings-tab-content-stocks" class="tab-content">
+                <p class="subtle-text">Choose which Google Sheet to use as your stock portfolio.</p>
+
+                <div id="stocks-current-sheet" class="auth-status-box">
+                  <div class="auth-status-row">
+                    <span class="auth-dot auth-dot--checking" id="stocks-sheet-dot"></span>
+                    <span id="stocks-sheet-label">Loading…</span>
+                  </div>
+                </div>
+
+                <div class="sheet-picker-row" style="margin-top:1rem">
+                  <button type="button" class="btn btn-secondary" id="btn-load-sheets">Browse Sheets</button>
+                </div>
+
+                <div id="sheet-picker-wrap" style="display:none;margin-top:1rem">
+                  <label for="sheet-select">Select a spreadsheet</label>
+                  <select id="sheet-select" class="cfg-select">
+                    <option value="">-- Choose a sheet --</option>
+                  </select>
+                  <div class="dialog-actions" style="margin-top:1rem">
+                    <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
+                    <button type="button" class="btn btn-primary" id="btn-save-sheet">Save Sheet</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </dialog>
+        </section>
+
+        <!-- Birthdays & Anniversaries Card -->
+        <section class="dashboard-card glass-panel celebrations-card" id="celebrations-card" aria-labelledby="celebrations-title">
+          <div class="card-header">
+            <h2 id="celebrations-title" class="card-title">
+              <span class="celebrations-icon-wrap">&#127881;</span>
+              Birthdays &amp; Anniversaries
+            </h2>
+            <span id="celebrations-count" class="badge">checking&#8230;</span>
+          </div>
+          <div id="celebrations-content" class="card-body celebrations-body">
+            <div class="skeleton-loader">
+              <div class="skeleton-line w-3/4 mb-3"></div>
+              <div class="skeleton-line w-full mb-3"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Google Calendar Card -->
+        <section class="dashboard-card glass-panel" id="calendar-card" aria-labelledby="calendar-title">
+          <div class="card-header">
+            <h2 id="calendar-title" class="card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="card-icon" width="22" height="22">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Today's Schedule
+            </h2>
+            <span id="calendar-count" class="badge">-- events</span>
+          </div>
+          <div id="calendar-content" class="card-body">
+            <!-- Skeleton Loader -->
+            <div class="skeleton-loader">
+              <div class="skeleton-line w-3/4 mb-3"></div>
+              <div class="skeleton-line w-full mb-3"></div>
+              <div class="skeleton-line w-2/3"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right Column: Stocks Portfolio -->
+      <div class="grid-column">
+        <section class="dashboard-card glass-panel stocks-card" id="stocks-card" aria-labelledby="stocks-title">
+          <div class="card-header">
+            <h2 id="stocks-title" class="card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="card-icon" width="22" height="22">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+              Stock Portfolio
+            </h2>
+            <div class="stocks-header-right">
+              <span id="stocks-summary" class="badge">-- holdings</span>
+              <button id="stocks-refresh-btn" class="refresh-btn" title="Refresh portfolio data" aria-label="Refresh stock portfolio">
+                <svg id="stocks-refresh-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Broker Filter Tabs -->
+          <div id="broker-filter-bar" class="broker-filter-bar">
+            <button class="broker-tab active" data-broker="all" id="broker-tab-all">All Brokers</button>
+            <!-- Dynamic broker tabs injected here -->
+          </div>
+
+          <!-- Stocks Grid Content -->
+          <div id="stocks-content" class="card-body stocks-body">
+            <div class="skeleton-loader">
+              <div class="skeleton-line w-full mb-3"></div>
+              <div class="skeleton-line w-4/5 mb-3"></div>
+              <div class="skeleton-line w-3/4 mb-3"></div>
+              <div class="skeleton-line w-full"></div>
+            </div>
+          </div>
+
+          <!-- Portfolio P&L Summary Footer -->
+          <div id="stocks-footer" class="stocks-footer" style="display:none;">
+            <div class="pnl-summary">
+              <span class="pnl-label">Total Invested</span>
+              <span id="total-invested" class="pnl-value">--</span>
+            </div>
+            <div class="pnl-summary">
+              <span class="pnl-label">Current Value</span>
+              <span id="total-value" class="pnl-value">--</span>
+            </div>
+            <div class="pnl-summary">
+              <span class="pnl-label">Overall P&amp;L</span>
+              <span id="total-pnl" class="pnl-value">--</span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- Footer Status -->
+    <footer class="dashboard-footer" id="main-footer">
+      <div class="connection-status">
+        <span class="status-indicator" id="mcp-status-dot"></span>
+        <span id="mcp-status-text">MCP Gateway Offline</span>
+      </div>
+      <p class="copyright-info">Personal Briefing Center &copy; 2026. Data Secured Locally.</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

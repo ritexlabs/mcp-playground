@@ -1,0 +1,9 @@
+# Environment / secrets — NEVER commit
+.env
+.env.local
+.env.*.local
+
+# Runtime
+.server.pid
+.server.log
+node_modules/

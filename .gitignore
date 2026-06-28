@@ -9,6 +9,9 @@ Thumbs.db
 *.swo
 *.sublime-workspace
 
+# Claude Code instructions — local only
+CLAUDE.md
+
 # Environment / secrets
 .env
 .env.local
@@ -52,3 +55,6 @@ htmlcov/
 .cache/
 .tmp/
 tmp/
+
+# Server runtime files
+.server.pid
