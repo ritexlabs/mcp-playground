@@ -9,8 +9,9 @@ Thumbs.db
 *.swo
 *.sublime-workspace
 
-# Claude Code instructions — local only
+# Claude Code — local only
 CLAUDE.md
+.claude/
 
 # Environment / secrets
 .env
