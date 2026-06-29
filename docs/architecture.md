@@ -96,9 +96,9 @@ The `daily-briefing-dashboard` is one frontend built on this gateway. Claude Des
 
 | File | Responsibility |
 |------|----------------|
-| `server.js` | Express API, MCP SSE client, proxy routes to gateway `/auth/*` and `/config/*` |
-| `public/app.js` | UI logic: fetch from `/api/*`, render cards, settings dialog with 3 tabs |
-| `public/index.html` | Dashboard shell, settings dialog (Location / Google / Stocks tabs) |
+| `server.js` | Express API, MCP SSE client, CORS + security headers, proxy routes to gateway `/auth/*` and `/config/*` |
+| `public/app.js` | UI logic: fetch from `/api/*`, render cards, gateway polling with auto-retry on reconnect, settings dialog |
+| `public/index.html` | Dashboard shell, settings dialog (Location / Google / Stocks / IndMoney / Layout tabs) |
 | `public/style.css` | Dark glassmorphism theme, responsive grid |
 | `public/celebrations.js` | Birthday and anniversary detection from calendar events |
 
@@ -179,7 +179,7 @@ load_token(service)
 | Secret storage | macOS Keychain via `keyring`; `.env` as fallback cache |
 | Secret isolation | `.env` is gitignored; `.env.example` has placeholder values only |
 | CORS | FastAPI `CORSMiddleware` restricts allowed origins to `DASHBOARD_ORIGIN` (default `http://localhost:8080`) |
-| Security headers | `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`, `Content-Security-Policy` on all responses |
+| Security headers | `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`, `Content-Security-Policy` on all responses via a pure ASGI middleware (not `BaseHTTPMiddleware`) to preserve SSE streaming |
 | OAuth state TTL | In-memory `_AUTH_FLOWS` and `_INDMONEY_AUTH_FLOWS` entries expire after `AUTH_FLOW_TTL_SECONDS` (default 300 s) |
 | postMessage origin | IndMoney success page sends `postMessage` only to `DASHBOARD_ORIGIN` — never to `'*'` |
 | Token exposure | `sanitize_error()` redacts strings ≥ 30 chars (including `.`, `/`, `+`, `=`) from error messages |

@@ -110,14 +110,25 @@ npm install
 cp .env.example .env    # only needed if gateway is not on http://127.0.0.1:8000
 ```
 
-### Start / Stop
+### Start / Stop (recommended)
+
+Use the unified stack script from the repo root:
 
 ```bash
-./start.sh              # launches at http://localhost:8080
+bash scripts/start_dashboard.sh start    # gateway first → dashboard
+bash scripts/start_dashboard.sh stop     # dashboard first → gateway
+bash scripts/start_dashboard.sh restart
+bash scripts/start_dashboard.sh status
+```
+
+Or start each service individually:
+
+```bash
+./start.sh              # dashboard only — launches at http://localhost:8080
 ./stop.sh
 ```
 
-The dashboard checks gateway reachability on startup. If the gateway is not running it will warn and retry.
+The dashboard checks gateway reachability every 10 seconds. If the gateway was not running when the page loaded, cards that failed will automatically refresh once it comes online.
 
 ### Settings Dialog
 
@@ -128,6 +139,8 @@ Open the dashboard and click **Settings** (top-right):
 | **Location** | Set your city for weather |
 | **Google** | Connect / disconnect Google OAuth (opens the gateway's `/auth/google`) |
 | **Stocks** | Browse your Drive spreadsheets and pick the portfolio sheet |
+| **IndMoney** | Connect / disconnect IndMoney via OAuth 2.1 + PKCE; set which tool to show on the card |
+| **Layout** | Show/hide cards and drag to reorder them |
 
 ---
 

@@ -172,7 +172,7 @@ Calls the configured `INDMONEY_DISPLAY_TOOL` and returns its text output.
 
 Returns structured networth, stock SIP, and mutual fund SIP data for the dashboard card.
 
-**Response**
+**Response — 200 OK**
 ```json
 {
   "snapshot": { ... },
@@ -180,6 +180,16 @@ Returns structured networth, stock SIP, and mutual fund SIP data for the dashboa
   "mf_sips": [ ... ]
 }
 ```
+
+**Response — 401 Unauthorized** (token expired or invalid)
+```json
+{
+  "auth_required": true,
+  "error": "IndMoney session expired"
+}
+```
+
+When `auth_required` is `true` the client should prompt the user to reconnect via `GET /auth/indmoney`.
 
 ---
 

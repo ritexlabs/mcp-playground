@@ -795,6 +795,23 @@ body {
   font-size: 0.85rem;
 }
 
+.indmoney-reconnect-btn {
+  margin-top: 1.1rem;
+  padding: 0.5rem 1.25rem;
+  background: linear-gradient(135deg, #2dd4bf, #06b6d4);
+  color: #070a13;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.indmoney-reconnect-btn:hover {
+  opacity: 0.85;
+}
+
 /* Skeleton Loading Pulsate */
 .skeleton-loader {
   display: flex;
@@ -872,6 +889,36 @@ body {
 .copyright-info {
   font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+/* ── MCP Status Footer ────────────────────────────────────────────────────── */
+.mcp-status-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+#mcp-footer-status.online {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+#mcp-footer-status.offline {
+  background: rgba(239, 68, 68, 0.10);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+#mcp-footer-status.online #mcp-status-text {
+  color: #10b981;
+}
+
+#mcp-footer-status.offline #mcp-status-text {
+  color: #ef4444;
+}
+
+.mcp-status-time {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  opacity: 0.75;
 }
 
 /* Responsive adjustments */
@@ -1493,6 +1540,18 @@ body {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 0 0 1.25rem 1.25rem;
   flex-wrap: wrap;
+}
+
+.stocks-sync-row {
+  width: 100%;
+  text-align: center;
+  margin-top: -0.25rem;
+}
+
+.sync-time-label {
+  font-size: 0.64rem;
+  color: var(--text-muted);
+  opacity: 0.65;
 }
 
 .pnl-summary {

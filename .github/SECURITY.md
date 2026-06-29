@@ -33,7 +33,7 @@ We will acknowledge the report within 7 days and aim to release a fix within 30 
 
 - The MCP Gateway binds to `127.0.0.1` by default — not reachable from the network.
 - CORS is restricted to `DASHBOARD_ORIGIN` (default: `http://localhost:8080`).
-- Security headers are set on all responses: `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Content-Security-Policy`, `Referrer-Policy`.
+- Security headers are set on all responses via a pure ASGI middleware: `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Content-Security-Policy`, `Referrer-Policy`. A pure ASGI middleware is used (not `BaseHTTPMiddleware`) to avoid buffering SSE streams.
 
 ### OAuth security
 

@@ -11,6 +11,7 @@ const STATE = {
   weather: null,
   calendarEvents: [],
   stocks: [],
+  stocksLastSync: null,
   activeBrokerFilter: "all",
   mcpConnected: false,
   stocksSort: {
@@ -28,6 +29,7 @@ const DOM = {
   refreshBtn: document.getElementById("refresh-btn"),
   mcpStatusDot: document.getElementById("mcp-status-dot"),
   mcpStatusText: document.getElementById("mcp-status-text"),
+  mcpStatusTime: document.getElementById("mcp-status-time"),
   
   // Weather
   locationName: document.getElementById("location-name"),
@@ -505,8 +507,9 @@ async function fetchStocks() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (data.error) throw new Error(data.error);
-    
+
     STATE.stocks = parseMcpStocksResponse(data);
+    STATE.stocksLastSync = new Date();
     renderBrokerTabs();
     renderStocksGrid();
   } catch (error) {
@@ -789,7 +792,12 @@ function renderStocksFooter(stocks) {
     DOM.totalPnl.textContent = `${pnlSign}${formatCurrency(Math.abs(totalPnl))} (${pnlSign}${formatNum(totalPnlPct, 2)}%)`;
     DOM.totalPnl.className = `pnl-value ${pnlClass}`;
   }
-  
+
+  const syncEl = document.getElementById("stocks-sync-time");
+  if (syncEl && STATE.stocksLastSync) {
+    syncEl.textContent = `Synced ${STATE.stocksLastSync.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`;
+  }
+
   footer.style.display = "flex";
 }
 
@@ -1070,23 +1078,27 @@ async function checkMcpConnection() {
     const response = await fetch("/api/status");
     if (!response.ok) throw new Error("Status API offline");
     const data = await response.json();
-    
+
     STATE.mcpConnected = data.connected;
-    if (DOM.mcpStatusDot) {
-      if (STATE.mcpConnected) {
-        DOM.mcpStatusDot.classList.add("online");
-        DOM.mcpStatusText.textContent = "MCP Gateway Online";
-      } else {
-        DOM.mcpStatusDot.classList.remove("online");
-        DOM.mcpStatusText.textContent = "MCP Gateway Offline";
-      }
+    const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
+    const footerEl = document.getElementById("mcp-footer-status");
+    if (STATE.mcpConnected) {
+      if (DOM.mcpStatusDot) { DOM.mcpStatusDot.textContent = "✅"; DOM.mcpStatusDot.className = "mcp-status-icon"; }
+      if (DOM.mcpStatusText) DOM.mcpStatusText.textContent = "MCP Gateway Online";
+      if (footerEl) footerEl.className = "connection-status online";
+    } else {
+      if (DOM.mcpStatusDot) { DOM.mcpStatusDot.textContent = "🔴"; DOM.mcpStatusDot.className = "mcp-status-icon"; }
+      if (DOM.mcpStatusText) DOM.mcpStatusText.textContent = "MCP Gateway Offline";
+      if (footerEl) footerEl.className = "connection-status offline";
     }
+    if (DOM.mcpStatusTime) DOM.mcpStatusTime.textContent = `as of ${timeStr}`;
   } catch (error) {
     STATE.mcpConnected = false;
-    if (DOM.mcpStatusDot) {
-      DOM.mcpStatusDot.classList.remove("online");
-      DOM.mcpStatusText.textContent = "MCP Gateway Offline";
-    }
+    if (DOM.mcpStatusDot) { DOM.mcpStatusDot.textContent = "🔴"; DOM.mcpStatusDot.className = "mcp-status-icon"; }
+    if (DOM.mcpStatusText) DOM.mcpStatusText.textContent = "MCP Gateway Offline";
+    if (DOM.mcpStatusTime) DOM.mcpStatusTime.textContent = "";
+    const footerEl = document.getElementById("mcp-footer-status");
+    if (footerEl) footerEl.className = "connection-status offline";
   }
 }
 
@@ -1763,18 +1775,41 @@ function _timeAgo(ts) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+function _getIndMoneyReconnectHTML() {
+  return `
+    <div class="empty-state">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="40" height="40">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+      <h4>Session Expired</h4>
+      <p>Your IndMoney session has expired. Please reconnect to view your networth.</p>
+      <button class="indmoney-reconnect-btn" onclick="(function(){ const g=window._MCP_GATEWAY_URL||'http://127.0.0.1:8000'; window.open(g+'/auth/indmoney','_blank','noopener,noreferrer'); })()">
+        🔗 Reconnect IndMoney
+      </button>
+    </div>`;
+}
+
 async function fetchIndMoney() {
   const el = document.getElementById("indmoney-content");
   if (!el) return;
 
   try {
     const r = await fetch("/api/indmoney/overview");
+    if (r.status === 401) {
+      el.innerHTML = _getIndMoneyReconnectHTML();
+      return;
+    }
     if (!r.ok) {
-      const d = await r.json().catch(() => ({}));
       el.innerHTML = getMcpOfflineHTML("IndMoney Networth");
       return;
     }
     const data = await r.json();
+
+    if (data.auth_required) {
+      el.innerHTML = _getIndMoneyReconnectHTML();
+      return;
+    }
+
     const snap = data.snapshot || {};
 
     if (!snap.total_networth && !snap.total_current_value) {
@@ -1983,6 +2018,15 @@ async function init() {
   updateClock();
   setInterval(updateClock, 1000);
   loadLocation();
+
+  // Poll gateway every 10 s; auto-retry data cards if gateway transitions offline → online
+  setInterval(async () => {
+    const wasConnected = STATE.mcpConnected;
+    await checkMcpConnection();
+    if (!wasConnected && STATE.mcpConnected) {
+      Promise.allSettled([fetchWeather(), fetchCalendar(), fetchStocks(), fetchCelebrations(), fetchIndMoney()]);
+    }
+  }, 10000);
 }
 
 document.addEventListener("DOMContentLoaded", init);

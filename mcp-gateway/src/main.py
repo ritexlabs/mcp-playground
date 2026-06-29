@@ -6,7 +6,8 @@ import time
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.datastructures import MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from mcp.server import Server
 from mcp.server.sse import SseServerTransport
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
@@ -228,17 +229,28 @@ async def lifespan(_app: FastAPI):
     log_system_event("shutdown", server=settings.MCP_SERVER_NAME)
 
 
-class _SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'none'; frame-ancestors 'none'"
-        )
-        return response
+class _SecurityHeadersMiddleware:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def _send(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                headers["X-Content-Type-Options"] = "nosniff"
+                headers["X-Frame-Options"] = "DENY"
+                headers["X-XSS-Protection"] = "1; mode=block"
+                headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+                headers["Content-Security-Policy"] = (
+                    "default-src 'none'; frame-ancestors 'none'"
+                )
+            await send(message)
+
+        await self.app(scope, receive, _send)
 
 
 app = FastAPI(
@@ -649,7 +661,7 @@ async def indmoney_data():
 async def indmoney_overview():
     """Return structured networth + SIP data for the dashboard card."""
     import json as _json
-    from .services.downstream.indmoney_client import call_tool as _call
+    from .services.downstream.indmoney_client import call_tool as _call, test_connection as _test
 
     async def _fetch(tool: str, args: dict = {}):
         try:
@@ -664,6 +676,17 @@ async def indmoney_overview():
         _fetch("indian_stocks_sips"),
         _fetch("mf_sips"),
     )
+
+    if not snapshot:
+        # Nothing came back — check if it's an auth error
+        conn = await _test()
+        if not conn.get("connected"):
+            err = conn.get("error", "")
+            if "401" in err or "nauthorized" in err:
+                return JSONResponse(
+                    {"auth_required": True, "error": "IndMoney session expired"},
+                    status_code=401,
+                )
 
     return {
         "snapshot": snapshot,

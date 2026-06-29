@@ -81,19 +81,40 @@ DASHBOARD_ORIGIN=http://localhost:8080
 
 ## Running
 
-### Start gateway
+### Start the full stack (recommended)
+
+From the repo root:
 
 ```bash
-cd mcp-gateway
-./start.sh
+bash scripts/start_dashboard.sh start
 ```
 
-Verify it is up:
+This starts the gateway first, waits for it to be healthy, then starts the dashboard.
+
 ```bash
+bash scripts/start_dashboard.sh stop     # graceful shutdown
+bash scripts/start_dashboard.sh restart  # restart both
+bash scripts/start_dashboard.sh status   # check PIDs and health
+```
+
+### Start services individually
+
+```bash
+# Gateway
+cd mcp-gateway && ./start.sh
+
+# Verify
 curl http://127.0.0.1:8000/health
+
+# Dashboard (in a separate terminal)
+cd daily-briefing-dashboard && ./start.sh
 ```
+
+Open [http://localhost:8080](http://localhost:8080) in your browser.
 
 ### Authenticate Google
+
+Open the dashboard and click **Settings → Google → Connect Google** — or navigate directly:
 
 ```bash
 open http://127.0.0.1:8000/auth/google
@@ -101,21 +122,13 @@ open http://127.0.0.1:8000/auth/google
 
 Grant all requested permissions (Gmail, Calendar, Drive, Sheets). The token is stored in macOS Keychain — you will not need to re-authenticate unless you revoke access.
 
-### Start dashboard
-
-```bash
-cd daily-briefing-dashboard
-./start.sh
-```
-
-Open [http://localhost:8080](http://localhost:8080) in your browser.
-
 ### Connect IndMoney (optional)
 
-1. Open the dashboard and click **Settings → IndMoney**.
-2. Click **Connect IndMoney**.
-3. Log in with your IndMoney mobile number, OTP, and MPIN.
-4. The token is stored in macOS Keychain automatically.
+1. Open the dashboard and click **Settings → IndMoney → Connect IndMoney**.
+2. A new window opens — log in with your IndMoney mobile number, OTP, and MPIN.
+3. The token is stored in macOS Keychain automatically.
+
+> **Session expiry** — IndMoney access tokens expire periodically. When your token expires the "My Networth" card shows a **"Session Expired — Reconnect IndMoney"** button. Click it to re-authenticate without losing other settings.
 
 ---
 
