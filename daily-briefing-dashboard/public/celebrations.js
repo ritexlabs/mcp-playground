@@ -112,7 +112,7 @@ function renderCelebrations(celebrations) {
           </div>`).join("")}
       </div>
     </div>
-    \${idx < celebrations.length - 1 ? '<div class="cel-divider"></div>' : ''}`;
+    ${idx < celebrations.length - 1 ? '<div class="cel-divider"></div>' : ''}`;
   }).join("");
 }
 

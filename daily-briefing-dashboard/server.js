@@ -212,15 +212,27 @@ app.get("/api/celebrations", async (req, res) => {
   try {
     const response = await mcpClient.callTool({
       name: "calendar_list_events",
-      arguments: { days_ahead: 1, max_results: 50, calendar_id: "primary" },
+      arguments: { days_ahead: 2, max_results: 50, calendar_id: "primary" },
     });
 
     const text = response.content?.[0]?.text || "";
+    const todayStr = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
+
     const celebrations = [];
-    const titleRegex = /•\s+\*\*(.+?)\*\*/g;
-    let m;
-    while ((m = titleRegex.exec(text)) !== null) {
-      const eventTitle = m[1].trim();
+    // Split on event bullets and process each block
+    const blocks = text.split(/(?=•\s+\*\*)/);
+    for (const block of blocks) {
+      const titleMatch = block.match(/^•\s+\*\*(.+?)\*\*/);
+      if (!titleMatch) continue;
+
+      // Only include events whose start date is today
+      const startMatch = block.match(/\*\*Start:\*\*\s*([\d-]+)/);
+      if (startMatch) {
+        const eventDate = startMatch[1].slice(0, 10); // YYYY-MM-DD
+        if (eventDate !== todayStr) continue;
+      }
+
+      const eventTitle = titleMatch[1].trim();
       const tl = eventTitle.toLowerCase();
 
       let type = null;
