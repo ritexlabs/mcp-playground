@@ -1,5 +1,12 @@
 // Client-side Application Controller
 
+// Interval handles — kept module-level so visibilitychange can pause/resume them
+let _clockIntervalId = null;
+let _pollIntervalId  = null;
+
+// Per-card error flags — set true when a fetch fails so the poll can auto-retry
+const CARD_ERRORS = { weather: false, calendar: false, stocks: false, celebrations: false, indmoney: false };
+
 // State Management
 const STATE = {
   location: {
@@ -111,6 +118,19 @@ function setupEventListeners() {
       }
     });
   }
+
+  // Delegated handler for per-card "Try Again" buttons rendered inside error states
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-card-retry]");
+    if (!btn) return;
+    const card = btn.dataset.cardRetry;
+    const map = { weather: fetchWeather, calendar: fetchCalendar, stocks: fetchStocks, celebrations: fetchCelebrations, indmoney: fetchIndMoney };
+    if (map[card]) {
+      btn.disabled = true;
+      btn.textContent = "Retrying…";
+      map[card]();
+    }
+  });
 }
 
 // ─── Clock & Greeting ───────────────────────────────────────────────────────
@@ -158,36 +178,40 @@ function updateGreeting() {
 async function loadLocation() {
   const saved = localStorage.getItem("dashboard-location");
   if (saved) {
+    try { STATE.location = JSON.parse(saved); } catch (e) {}
+  }
+
+  // Start loading all cards immediately with whatever location we have (saved or default).
+  // Do NOT wait for IP geolocation — calendar, stocks, celebrations and networth don't
+  // need a location at all, and waiting blocked all five cards on a slow external API.
+  if (DOM.locationName) DOM.locationName.textContent = STATE.location.name;
+  updateGreeting();
+  refreshData();
+
+  // If no saved location, detect it in the background.
+  // Only weather depends on location, so only it needs a re-fetch after detection.
+  if (!saved) {
     try {
-      STATE.location = JSON.parse(saved);
+      if (DOM.locationName) DOM.locationName.textContent = "Detecting location…";
+      const response = await fetch("https://ipapi.co/json/");
+      if (!response.ok) throw new Error("Location service unavailable");
+      const data = await response.json();
+      if (data.latitude && data.longitude) {
+        STATE.location = {
+          name: `${data.city}, ${data.country_code}`,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          timezone: data.timezone || "Asia/Kolkata"
+        };
+        localStorage.setItem("dashboard-location", JSON.stringify(STATE.location));
+        fetchWeather(); // only weather uses location — re-fetch it with the detected city
+      }
+    } catch (error) {
+      console.warn("IP Geolocation failed. Using default location:", error);
+    } finally {
       if (DOM.locationName) DOM.locationName.textContent = STATE.location.name;
       updateGreeting();
-      refreshData();
-      return;
-    } catch (e) {}
-  }
-  
-  try {
-    if (DOM.locationName) DOM.locationName.textContent = "Detecting IP location...";
-    const response = await fetch("https://ipapi.co/json/");
-    if (!response.ok) throw new Error("Location service unavailable");
-    const data = await response.json();
-    
-    if (data.latitude && data.longitude) {
-      STATE.location = {
-        name: `${data.city}, ${data.country_code}`,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        timezone: data.timezone || "Asia/Kolkata"
-      };
-      localStorage.setItem("dashboard-location", JSON.stringify(STATE.location));
     }
-  } catch (error) {
-    console.warn("IP Geolocation failed. Using default location:", error);
-  } finally {
-    if (DOM.locationName) DOM.locationName.textContent = STATE.location.name;
-    updateGreeting();
-    refreshData();
   }
 }
 
@@ -231,13 +255,15 @@ async function fetchWeather() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (data.error) throw new Error(data.error);
-    
+
+    CARD_ERRORS.weather = false;
     const parsed = parseMcpWeatherResponse(data);
     renderWeather(parsed);
   } catch (error) {
+    CARD_ERRORS.weather = true;
     console.error("Error fetching weather:", error);
     if (DOM.weatherContent) {
-      DOM.weatherContent.innerHTML = getMcpOfflineHTML("Weather");
+      DOM.weatherContent.innerHTML = getMcpOfflineHTML("Weather", "weather");
     }
   }
 }
@@ -359,12 +385,14 @@ async function fetchCalendar() {
     const data = await response.json();
     if (data.error) throw new Error(data.error);
     
+    CARD_ERRORS.calendar = false;
     const events = parseMcpCalendarResponse(data);
     renderCalendar(events);
   } catch (error) {
+    CARD_ERRORS.calendar = true;
     console.error("Error fetching calendar:", error);
     if (DOM.calendarContent) {
-      DOM.calendarContent.innerHTML = getMcpOfflineHTML("Calendar");
+      DOM.calendarContent.innerHTML = getMcpOfflineHTML("Calendar", "calendar");
     }
     if (DOM.calendarCount) DOM.calendarCount.textContent = "unavailable";
   }
@@ -508,14 +536,16 @@ async function fetchStocks() {
     const data = await response.json();
     if (data.error) throw new Error(data.error);
 
+    CARD_ERRORS.stocks = false;
     STATE.stocks = parseMcpStocksResponse(data);
     STATE.stocksLastSync = new Date();
     renderBrokerTabs();
     renderStocksGrid();
   } catch (error) {
+    CARD_ERRORS.stocks = true;
     console.error("Error fetching stocks:", error);
     if (DOM.stocksContent) {
-      DOM.stocksContent.innerHTML = getMcpOfflineHTML("Stocks Portfolio");
+      DOM.stocksContent.innerHTML = getMcpOfflineHTML("Stocks Portfolio", "stocks");
     }
     if (DOM.stocksSummary) DOM.stocksSummary.textContent = "unavailable";
     if (DOM.stocksFooter) DOM.stocksFooter.style.display = "none";
@@ -963,12 +993,14 @@ async function fetchCelebrations() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (data.error) throw new Error(data.error);
-    
+
+    CARD_ERRORS.celebrations = false;
     renderCelebrations(data);
   } catch (error) {
+    CARD_ERRORS.celebrations = true;
     console.error("Error fetching celebrations:", error);
     if (DOM.celebrationsContent) {
-      DOM.celebrationsContent.innerHTML = getMcpOfflineHTML("Celebrations");
+      DOM.celebrationsContent.innerHTML = getMcpOfflineHTML("Celebrations", "celebrations");
     }
     if (DOM.celebrationsCount) DOM.celebrationsCount.textContent = "unavailable";
   }
@@ -1021,14 +1053,21 @@ function formatEventTime(date) {
   }).format(date);
 }
 
-function getMcpOfflineHTML(serviceName) {
+function getMcpOfflineHTML(serviceName, cardKey) {
+  const retryBtn = cardKey
+    ? `<button class="btn btn-secondary btn-card-retry" data-card-retry="${escHtml(cardKey)}" style="margin-top:0.75rem;display:inline-flex;align-items:center;gap:6px;font-size:0.8rem;padding:0.35rem 0.9rem;">
+         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+         Try Again
+       </button>`
+    : '';
   return `
     <div class="empty-state">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="40" height="40">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
-      <h4>Connection Offline</h4>
-      <p>Failed to retrieve ${escHtml(serviceName)} from MCP gateway.</p>
+      <h4>Failed to Load</h4>
+      <p>Could not retrieve ${escHtml(serviceName)} data.</p>
+      ${retryBtn}
     </div>
   `;
 }
@@ -1797,23 +1836,26 @@ async function fetchIndMoney() {
     const r = await fetch("/api/indmoney/overview");
     if (r.status === 401) {
       el.innerHTML = _getIndMoneyReconnectHTML();
-      return;
+      return; // auth state — not a retry-able error
     }
     if (!r.ok) {
-      el.innerHTML = getMcpOfflineHTML("IndMoney Networth");
+      CARD_ERRORS.indmoney = true;
+      el.innerHTML = getMcpOfflineHTML("IndMoney Networth", "indmoney");
       return;
     }
     const data = await r.json();
 
     if (data.auth_required) {
       el.innerHTML = _getIndMoneyReconnectHTML();
-      return;
+      return; // auth state — not a retry-able error
     }
 
+    CARD_ERRORS.indmoney = false;
     const snap = data.snapshot || {};
 
     if (!snap.total_networth && !snap.total_current_value) {
-      el.innerHTML = getMcpOfflineHTML("IndMoney Networth");
+      CARD_ERRORS.indmoney = true;
+      el.innerHTML = getMcpOfflineHTML("IndMoney Networth", "indmoney");
       return;
     }
 
@@ -1836,7 +1878,8 @@ async function fetchIndMoney() {
       renderNetworthActivity(data);
     }
   } catch (err) {
-    if (el) el.innerHTML = getMcpOfflineHTML("IndMoney Networth");
+    CARD_ERRORS.indmoney = true;
+    if (el) el.innerHTML = getMcpOfflineHTML("IndMoney Networth", "indmoney");
   }
 }
 
@@ -2016,17 +2059,48 @@ async function init() {
   _setupNetworthViewToggle();
   _setupNwPrivacyToggle();
   updateClock();
-  setInterval(updateClock, 1000);
+  _clockIntervalId = setInterval(updateClock, 1000);
   loadLocation();
 
   // Poll gateway every 10 s; auto-retry data cards if gateway transitions offline → online
-  setInterval(async () => {
-    const wasConnected = STATE.mcpConnected;
-    await checkMcpConnection();
-    if (!wasConnected && STATE.mcpConnected) {
-      Promise.allSettled([fetchWeather(), fetchCalendar(), fetchStocks(), fetchCelebrations(), fetchIndMoney()]);
+  _pollIntervalId = setInterval(_pollGateway, 10000);
+
+  // Pause all polling when the tab is hidden; resume when it becomes visible again.
+  // This prevents interval work from piling up in background tabs and stops Chrome
+  // from running the clock and fetch loops when the user isn't looking at the page.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      clearInterval(_clockIntervalId);
+      clearInterval(_pollIntervalId);
+    } else {
+      updateClock();
+      _clockIntervalId = setInterval(updateClock, 1000);
+      _pollIntervalId  = setInterval(_pollGateway, 10000);
+      // Immediately re-check connection so cards recover as soon as the tab refocuses
+      _pollGateway();
     }
-  }, 10000);
+  });
+}
+
+async function _pollGateway() {
+  const wasConnected = STATE.mcpConnected;
+  await checkMcpConnection();
+  if (!STATE.mcpConnected) return;
+
+  if (!wasConnected) {
+    // Gateway just came back online — refresh all cards
+    Promise.allSettled([fetchWeather(), fetchCalendar(), fetchStocks(), fetchCelebrations(), fetchIndMoney()]);
+    return;
+  }
+
+  // Gateway was already online but individual cards may have failed — retry them
+  const retries = [];
+  if (CARD_ERRORS.weather)      retries.push(fetchWeather());
+  if (CARD_ERRORS.calendar)     retries.push(fetchCalendar());
+  if (CARD_ERRORS.stocks)       retries.push(fetchStocks());
+  if (CARD_ERRORS.celebrations) retries.push(fetchCelebrations());
+  if (CARD_ERRORS.indmoney)     retries.push(fetchIndMoney());
+  if (retries.length) Promise.allSettled(retries);
 }
 
 document.addEventListener("DOMContentLoaded", init);

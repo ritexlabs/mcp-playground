@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Daily Briefing | Personal Command Center</title>
   <meta name="description" content="A secure, personalized day briefing dashboard featuring real-time weather, upcoming calendar events, and your live stock portfolio.">
-  
+
   <!-- Typography & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -68,9 +68,7 @@
               <button id="change-location-btn" class="text-link-btn" aria-label="Change location">Change</button>
             </div>
           </div>
-          
           <div id="weather-content" class="card-body">
-            <!-- Skeleton Loader -->
             <div class="skeleton-loader">
               <div class="skeleton-circle"></div>
               <div class="skeleton-lines">
@@ -79,139 +77,6 @@
               </div>
             </div>
           </div>
-          
-          <!-- Unified Settings Config Dialog (Hidden by default) -->
-          <dialog id="settings-dialog" class="glass-dialog settings-dialog-panel">
-            <div class="settings-wrapper">
-              <div class="settings-header-block">
-                <h3>Dashboard Settings</h3>
-                <div class="settings-tabs">
-                  <button id="tab-general" class="tab-btn active" type="button">Location</button>
-                  <button id="tab-google" class="tab-btn" type="button">Google</button>
-                  <button id="tab-stocks" class="tab-btn" type="button">Stocks</button>
-                  <button id="tab-indmoney" class="tab-btn" type="button">IndMoney</button>
-                  <button id="tab-layout" class="tab-btn" type="button">Layout</button>
-                </div>
-              </div>
-
-              <!-- Tab Content: Location -->
-              <div id="settings-tab-content-general" class="tab-content active">
-                <form id="settings-location-form">
-                  <p class="subtle-text">Configure your current location to fetch regional weather conditions.</p>
-                  <div class="input-group">
-                    <label for="settings-city-input">Current City / Location</label>
-                    <input type="text" id="settings-city-input" placeholder="e.g. Bengaluru, IN" autocomplete="off" required>
-                  </div>
-                  <div class="dialog-actions">
-                    <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
-                    <button type="submit" class="btn btn-primary">Save Location</button>
-                  </div>
-                </form>
-              </div>
-
-              <!-- Tab Content: Google Auth -->
-              <div id="settings-tab-content-google" class="tab-content">
-                <p class="subtle-text">Authorise Google access for Gmail, Calendar, Drive and Sheets.</p>
-
-                <div id="google-auth-status" class="auth-status-box">
-                  <div class="auth-status-row">
-                    <span id="auth-status-icon" class="auth-dot"></span>
-                    <span id="auth-status-label">—</span>
-                  </div>
-                </div>
-
-                <div class="dialog-actions" style="margin-top:1.25rem">
-                  <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
-                  <button type="button" class="btn btn-secondary" id="btn-refresh-auth">Refresh Status</button>
-                  <button type="button" class="btn btn-primary" id="btn-connect-google" style="display:none">Connect Google</button>
-                  <button type="button" class="btn btn-danger" id="btn-disconnect-google" style="display:none">Disconnect</button>
-                </div>
-
-                <p class="subtle-text" style="margin-top:1rem;font-size:0.78rem">
-                  Clicking <strong>Connect Google</strong> opens a browser tab. Sign in, grant all permissions, then close the tab and click <strong>Refresh Status</strong>.
-                </p>
-              </div>
-
-              <!-- Tab Content: Stocks Sheet -->
-              <div id="settings-tab-content-stocks" class="tab-content">
-                <p class="subtle-text">Choose which Google Sheet to use as your stock portfolio.</p>
-
-                <div id="stocks-current-sheet" class="auth-status-box">
-                  <div class="auth-status-row">
-                    <span class="auth-dot" id="stocks-sheet-dot"></span>
-                    <span id="stocks-sheet-label">—</span>
-                  </div>
-                </div>
-
-                <div class="dialog-actions" style="margin-top:1rem">
-                  <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
-                  <button type="button" class="btn btn-secondary" id="btn-load-sheets">Browse Sheets</button>
-                </div>
-
-                <div id="sheet-picker-wrap" style="display:none;margin-top:1rem">
-                  <label for="sheet-select">Select a spreadsheet</label>
-                  <select id="sheet-select" class="cfg-select">
-                    <option value="">-- Choose a sheet --</option>
-                  </select>
-                  <div class="dialog-actions" style="margin-top:1rem">
-                    <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
-                    <button type="button" class="btn btn-primary" id="btn-save-sheet">Save Sheet</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Tab Content: Layout -->
-              <div id="settings-tab-content-layout" class="tab-content">
-                <p class="subtle-text">Drag cards to reorder. Toggle the switch to show or hide a card.</p>
-                <div class="layout-list" id="layout-cards-list"></div>
-                <div class="dialog-actions" style="margin-top:1rem">
-                  <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
-                  <button type="button" class="btn btn-danger" id="btn-reset-layout">Reset to Default</button>
-                </div>
-              </div>
-
-              <!-- Tab Content: IndMoney -->
-              <div id="settings-tab-content-indmoney" class="tab-content">
-                <p class="subtle-text">Connect to IndMoney MCP server via OAuth to fetch your investments and net worth.</p>
-
-                <div id="indmoney-status-box" class="auth-status-box">
-                  <div class="auth-status-row">
-                    <span class="auth-dot" id="indmoney-status-dot"></span>
-                    <span id="indmoney-status-label">—</span>
-                  </div>
-                </div>
-
-                <div class="dialog-actions" style="margin-top:1.25rem">
-                  <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
-                  <button type="button" class="btn btn-secondary" id="btn-indmoney-refresh-status">Refresh Status</button>
-                  <button type="button" class="btn btn-primary" id="btn-connect-indmoney" style="display:none">Connect IndMoney</button>
-                  <button type="button" class="btn btn-danger" id="btn-disconnect-indmoney" style="display:none">Disconnect</button>
-                </div>
-
-                <div style="margin-top:1.25rem">
-                  <div class="input-group">
-                    <label for="indmoney-url-input">MCP Server URL</label>
-                    <input type="text" id="indmoney-url-input" value="https://mcp.indmoney.com/mcp" autocomplete="off">
-                  </div>
-                  <button type="button" class="btn btn-secondary" id="btn-indmoney-save-url" style="margin-top:0.5rem">Save URL</button>
-                </div>
-
-                <div id="indmoney-tool-picker" style="display:none;margin-top:1rem">
-                  <label for="indmoney-tool-select">Dashboard card — display tool</label>
-                  <select id="indmoney-tool-select" class="cfg-select">
-                    <option value="">-- pick a tool to show on the card --</option>
-                  </select>
-                  <button type="button" class="btn btn-primary" id="btn-indmoney-save-tool" style="margin-top:0.5rem">Save Tool</button>
-                </div>
-
-                <p class="subtle-text" style="margin-top:1rem;font-size:0.78rem">
-                  Click <strong>Connect IndMoney</strong> to sign in with your IndMoney mobile number,
-                  OTP, and MPIN. No developer registration needed — the gateway registers itself automatically.
-                  All 14 IndMoney tools are also available in <strong>Claude Desktop</strong> once connected.
-                </p>
-              </div>
-            </div>
-          </dialog>
         </section>
 
         <!-- Birthdays & Anniversaries Card -->
@@ -243,7 +108,6 @@
             <span id="calendar-count" class="badge">-- events</span>
           </div>
           <div id="calendar-content" class="card-body">
-            <!-- Skeleton Loader -->
             <div class="skeleton-loader">
               <div class="skeleton-line w-3/4 mb-3"></div>
               <div class="skeleton-line w-full mb-3"></div>
@@ -276,7 +140,6 @@
           <!-- Broker Filter Tabs -->
           <div id="broker-filter-bar" class="broker-filter-bar">
             <button class="broker-tab active" data-broker="all" id="broker-tab-all">All Brokers</button>
-            <!-- Dynamic broker tabs injected here -->
           </div>
 
           <!-- Stocks Grid Content -->
@@ -347,6 +210,144 @@
         </section>
       </div>
     </main>
+
+    <!--
+      Settings Dialog — intentionally placed OUTSIDE all cards.
+      The <dialog> must never be inside a card that can be hidden via
+      card layout, otherwise showModal() throws InvalidStateError when
+      the parent card has display:none.
+    -->
+    <dialog id="settings-dialog" class="glass-dialog settings-dialog-panel">
+      <div class="settings-wrapper">
+        <div class="settings-header-block">
+          <h3>Dashboard Settings</h3>
+          <div class="settings-tabs">
+            <button id="tab-general" class="tab-btn active" type="button">Location</button>
+            <button id="tab-google" class="tab-btn" type="button">Google</button>
+            <button id="tab-stocks" class="tab-btn" type="button">Stocks</button>
+            <button id="tab-indmoney" class="tab-btn" type="button">IndMoney</button>
+            <button id="tab-layout" class="tab-btn" type="button">Layout</button>
+          </div>
+        </div>
+
+        <!-- Tab Content: Location -->
+        <div id="settings-tab-content-general" class="tab-content active">
+          <form id="settings-location-form">
+            <p class="subtle-text">Configure your current location to fetch regional weather conditions.</p>
+            <div class="input-group">
+              <label for="settings-city-input">Current City / Location</label>
+              <input type="text" id="settings-city-input" placeholder="e.g. Bengaluru, IN" autocomplete="off" required>
+            </div>
+            <div class="dialog-actions">
+              <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
+              <button type="submit" class="btn btn-primary">Save Location</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Tab Content: Google Auth -->
+        <div id="settings-tab-content-google" class="tab-content">
+          <p class="subtle-text">Authorise Google access for Gmail, Calendar, Drive and Sheets.</p>
+
+          <div id="google-auth-status" class="auth-status-box">
+            <div class="auth-status-row">
+              <span id="auth-status-icon" class="auth-dot"></span>
+              <span id="auth-status-label">—</span>
+            </div>
+          </div>
+
+          <div class="dialog-actions" style="margin-top:1.25rem">
+            <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
+            <button type="button" class="btn btn-secondary" id="btn-refresh-auth">Refresh Status</button>
+            <button type="button" class="btn btn-primary" id="btn-connect-google" style="display:none">Connect Google</button>
+            <button type="button" class="btn btn-danger" id="btn-disconnect-google" style="display:none">Disconnect</button>
+          </div>
+
+          <p class="subtle-text" style="margin-top:1rem;font-size:0.78rem">
+            Clicking <strong>Connect Google</strong> opens a browser tab. Sign in, grant all permissions, then close the tab and click <strong>Refresh Status</strong>.
+          </p>
+        </div>
+
+        <!-- Tab Content: Stocks Sheet -->
+        <div id="settings-tab-content-stocks" class="tab-content">
+          <p class="subtle-text">Choose which Google Sheet to use as your stock portfolio.</p>
+
+          <div id="stocks-current-sheet" class="auth-status-box">
+            <div class="auth-status-row">
+              <span class="auth-dot" id="stocks-sheet-dot"></span>
+              <span id="stocks-sheet-label">—</span>
+            </div>
+          </div>
+
+          <div class="dialog-actions" style="margin-top:1rem">
+            <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
+            <button type="button" class="btn btn-secondary" id="btn-load-sheets">Browse Sheets</button>
+          </div>
+
+          <div id="sheet-picker-wrap" style="display:none;margin-top:1rem">
+            <label for="sheet-select">Select a spreadsheet</label>
+            <select id="sheet-select" class="cfg-select">
+              <option value="">-- Choose a sheet --</option>
+            </select>
+            <div class="dialog-actions" style="margin-top:1rem">
+              <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
+              <button type="button" class="btn btn-primary" id="btn-save-sheet">Save Sheet</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Content: Layout -->
+        <div id="settings-tab-content-layout" class="tab-content">
+          <p class="subtle-text">Drag cards to reorder. Toggle the switch to show or hide a card.</p>
+          <div class="layout-list" id="layout-cards-list"></div>
+          <div class="dialog-actions" style="margin-top:1rem">
+            <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
+            <button type="button" class="btn btn-danger" id="btn-reset-layout">Reset to Default</button>
+          </div>
+        </div>
+
+        <!-- Tab Content: IndMoney -->
+        <div id="settings-tab-content-indmoney" class="tab-content">
+          <p class="subtle-text">Connect to IndMoney MCP server via OAuth to fetch your investments and net worth.</p>
+
+          <div id="indmoney-status-box" class="auth-status-box">
+            <div class="auth-status-row">
+              <span class="auth-dot" id="indmoney-status-dot"></span>
+              <span id="indmoney-status-label">—</span>
+            </div>
+          </div>
+
+          <div class="dialog-actions" style="margin-top:1.25rem">
+            <button type="button" class="btn btn-secondary close-dialog-btn">Close</button>
+            <button type="button" class="btn btn-secondary" id="btn-indmoney-refresh-status">Refresh Status</button>
+            <button type="button" class="btn btn-primary" id="btn-connect-indmoney" style="display:none">Connect IndMoney</button>
+            <button type="button" class="btn btn-danger" id="btn-disconnect-indmoney" style="display:none">Disconnect</button>
+          </div>
+
+          <div style="margin-top:1.25rem">
+            <div class="input-group">
+              <label for="indmoney-url-input">MCP Server URL</label>
+              <input type="text" id="indmoney-url-input" value="https://mcp.indmoney.com/mcp" autocomplete="off">
+            </div>
+            <button type="button" class="btn btn-secondary" id="btn-indmoney-save-url" style="margin-top:0.5rem">Save URL</button>
+          </div>
+
+          <div id="indmoney-tool-picker" style="display:none;margin-top:1rem">
+            <label for="indmoney-tool-select">Dashboard card — display tool</label>
+            <select id="indmoney-tool-select" class="cfg-select">
+              <option value="">-- pick a tool to show on the card --</option>
+            </select>
+            <button type="button" class="btn btn-primary" id="btn-indmoney-save-tool" style="margin-top:0.5rem">Save Tool</button>
+          </div>
+
+          <p class="subtle-text" style="margin-top:1rem;font-size:0.78rem">
+            Click <strong>Connect IndMoney</strong> to sign in with your IndMoney mobile number,
+            OTP, and MPIN. No developer registration needed — the gateway registers itself automatically.
+            All 14 IndMoney tools are also available in <strong>Claude Desktop</strong> once connected.
+          </p>
+        </div>
+      </div>
+    </dialog>
 
     <!-- Footer Status -->
     <footer class="dashboard-footer" id="main-footer">

@@ -4,6 +4,18 @@
 
 ---
 
+## Demo
+
+### Dashboard
+
+![Daily Briefing Dashboard](docs/images/dashboard-demo.png)
+
+### Starting the Stack
+
+![Terminal — start the full stack with one command](docs/images/terminal-demo.png)
+
+---
+
 ## What We Are Building
 
 Two components live in this repo:
@@ -14,6 +26,19 @@ Two components live in this repo:
 | [`daily-briefing-dashboard/`](daily-briefing-dashboard/) | Personal morning dashboard (Node / Express + vanilla JS). Connects to the gateway via SSE, renders weather, Gmail, Calendar, and stock portfolio. |
 
 The gateway is the stable core. The dashboard is one consumer. Claude Desktop, Gemini Desktop, Cursor, and any other MCP-aware app are other consumers — all reading from the same gateway, with no duplicated credentials.
+
+---
+
+## Platform Setup Guides
+
+All management scripts are written in Python and run identically on Windows, macOS, and Linux. Pick the guide for your OS:
+
+| Platform | Guide |
+|----------|-------|
+| **Windows 10 / 11** | [docs/windows-setup.md](docs/windows-setup.md) — step-by-step: install Python & Node.js, credential setup, running the stack, troubleshooting |
+| **macOS / Linux** | [docs/development.md](docs/development.md) — local setup, Google auth, service management |
+
+> **macOS / Linux users:** the `.sh` scripts are still available as aliases (e.g. `./start.sh`), but the `.py` scripts are recommended going forward as they work everywhere.
 
 ---
 
@@ -31,62 +56,98 @@ mcp-playground/
 │   │   └── utils/            # Rate limiter, JSON audit logger, error types
 │   ├── scripts/              # One-off helpers (auth_all.py)
 │   ├── requirements.txt
-│   ├── setup.sh              # Create .venv, install deps
-│   ├── start.sh              # Launch uvicorn in background with PID guard
-│   └── stop.sh               # Kill by PID or port
+│   ├── setup.py              # Create .venv, install deps  (all platforms)
+│   ├── start.py              # Launch uvicorn in background with PID guard  (all platforms)
+│   ├── stop.py               # Kill by PID or port  (all platforms)
+│   ├── setup.sh              # macOS / Linux alias for setup.py
+│   ├── start.sh              # macOS / Linux alias for start.py
+│   └── stop.sh               # macOS / Linux alias for stop.py
 │
 ├── daily-briefing-dashboard/ # Node/Express frontend
 │   ├── server.js             # Express API + MCP SSE client + config proxy routes
 │   ├── public/
-│   │   ├── index.html        # Dashboard shell + settings dialog (3 tabs)
+│   │   ├── index.html        # Dashboard shell + settings dialog
 │   │   ├── app.js            # All UI logic: weather, calendar, Gmail, stocks, auth UI
 │   │   ├── celebrations.js   # Birthday / anniversary detection
 │   │   └── style.css         # Dark glassmorphism theme
-│   ├── start.sh
-│   └── stop.sh
+│   ├── start.py              # Start dashboard  (all platforms)
+│   ├── stop.py               # Stop dashboard   (all platforms)
+│   ├── start.sh              # macOS / Linux alias
+│   └── stop.sh               # macOS / Linux alias
 │
 ├── docs/
 │   ├── architecture.md       # System design, data flows, design decisions
-│   └── development.md        # Local setup guide
-└── scripts/                  # Repo-level scripts (git hooks, etc.)
+│   ├── development.md        # macOS / Linux setup guide
+│   ├── deployment.md         # Deploy process and secrets checklist
+│   └── windows-setup.md      # Windows 10/11 step-by-step setup guide
+│
+└── scripts/
+    ├── start_dashboard.py    # Unified stack: start / stop / restart / status  (all platforms)
+    ├── start_dashboard.sh    # macOS / Linux alias
+    └── setup.py              # git skip-worktree + hooks config  (all platforms)
 ```
 
 ---
 
 ## Quick Start
 
-### 1 — MCP Gateway
+> For a detailed walk-through see the platform guide for your OS above.
+
+### Option A — Full stack in one command (recommended)
+
+```bash
+# All platforms — from the repo root
+python scripts/start_dashboard.py start
+```
+
+```powershell
+# Windows PowerShell equivalent (same command)
+python scripts\start_dashboard.py start
+```
+
+### Option B — Step by step
+
+**Step 1 — Gateway setup (first run only)**
 
 ```bash
 cd mcp-gateway
-./setup.sh                  # creates .venv, installs requirements.txt (first run only)
-
-cp .env.example .env        # fill in GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
-
-./start.sh                  # starts on http://127.0.0.1:8000
+python setup.py
 ```
 
-Authenticate Google (Gmail, Calendar, Drive, Sheets) via the dashboard settings or directly:
+Copy `.env.example` to `.env` and fill in your `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then authorise Google:
+
 ```bash
-open http://127.0.0.1:8000/auth/google
+.venv/bin/python scripts/auth_all.py        # macOS / Linux
+.venv\Scripts\python.exe scripts\auth_all.py  # Windows
 ```
 
-Verify the gateway is up:
+**Step 2 — Start the gateway**
+
 ```bash
-curl http://127.0.0.1:8000/health
+cd mcp-gateway
+python start.py              # starts on http://127.0.0.1:8000
 ```
 
-### 2 — Daily Briefing Dashboard
+**Step 3 — Start the dashboard**
 
 ```bash
 cd daily-briefing-dashboard
-cp .env.example .env        # set MCP_GATEWAY_URL=http://127.0.0.1:8000 if non-default
-
-npm install                 # first run only
-./start.sh                  # starts on http://localhost:8080
+python start.py              # starts on http://localhost:8080
 ```
 
 Open [http://localhost:8080](http://localhost:8080), then **Settings → Google → Connect Google**.
+
+**Stopping the stack**
+
+```bash
+python scripts/start_dashboard.py stop
+```
+
+**Checking status**
+
+```bash
+python scripts/start_dashboard.py status
+```
 
 ---
 
@@ -146,7 +207,7 @@ See [mcp-gateway/INTEGRATION.md](mcp-gateway/INTEGRATION.md) for step-by-step in
 
 ## Key Design Decisions
 
-- **Single OAuth token for all Google services.** Gmail, Calendar, Drive, and Sheets share one set of scopes and one refresh token stored in macOS Keychain.
+- **Single OAuth token for all Google services.** Gmail, Calendar, Drive, and Sheets share one set of scopes and one refresh token stored in the OS credential store (macOS Keychain / Windows Credential Manager / Linux Secret Service).
 - **Gateway owns auth, not clients.** Frontends never handle credentials. The gateway exposes `/auth/google` → `/auth/callback` for browser-based OAuth and stores the token in keychain.
 - **SSE transport, not stdio.** A persistent SSE connection means the gateway runs once as a daemon; any number of clients connect without spawning subprocesses.
 - **Rate limiting per tool.** Token-bucket limiter (in-memory, per tool name) guards against runaway AI loops.
@@ -156,7 +217,7 @@ See [mcp-gateway/INTEGRATION.md](mcp-gateway/INTEGRATION.md) for step-by-step in
 
 ## Security
 
-- All secrets live in `.env` (gitignored) or macOS Keychain — never in code.
+- All secrets live in `.env` (gitignored) or the system credential store (macOS Keychain / Windows Credential Manager / Linux Secret Service) — never in code.
 - `.env.example` files contain only placeholder values — no real credentials.
 - CORS is restricted to `DASHBOARD_ORIGIN` on both the gateway and dashboard.
 - OAuth state tokens expire after 5 minutes; `postMessage` targets only the configured dashboard origin.

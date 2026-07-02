@@ -61,9 +61,13 @@ if ! kill -0 "$LAUNCHED_PID" 2>/dev/null; then
   exit 1
 fi
 
+# Shorten display paths — replace $HOME with ~ so personal system paths are not printed
+LOG_DISPLAY="${LOG_FILE/#$HOME/\~}"
+STOP_DISPLAY="${SCRIPT_DIR/#$HOME/\~}/stop.sh"
+
 echo ""
 echo "✅ Dashboard running (PID $LAUNCHED_PID)"
 echo "   URL:  http://localhost:$PORT"
-echo "   Log:  tail -f $LOG_FILE"
-echo "   Stop: bash \"$SCRIPT_DIR/stop.sh\""
+echo "   Log:  tail -f $LOG_DISPLAY"
+echo "   Stop: bash $STOP_DISPLAY"
 echo ""
