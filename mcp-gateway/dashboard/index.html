@@ -389,10 +389,160 @@
         <button class="btn btn-primary" onclick="saveWa()">Save Config</button>
       </div>
     </div>
+
+    <!-- ── Meta Setup Guide ── -->
+    <div class="card">
+      <div class="card-title">Meta WhatsApp Business API — Setup Guide</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:18px">
+        Follow these steps from scratch to connect your Meta WhatsApp Business account to this gateway.
+      </p>
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Create a Meta Developer Account</div>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Go to <strong>developers.facebook.com</strong> and click <em>Get Started</em></li>
+            <li>Log in with your Facebook account and complete phone verification</li>
+            <li>Accept the Meta Platform Policies when prompted</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Create a Meta App</div>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Click <strong>My Apps → Create App</strong></li>
+            <li>Use case: choose <strong>Other</strong> → Next</li>
+            <li>App type: choose <strong>Business</strong> → Next</li>
+            <li>Give your app a name (e.g. <em>My WhatsApp Gateway</em>)</li>
+            <li>Business Portfolio: select an existing one or click <em>Create a business portfolio</em></li>
+            <li>Click <strong>Create App</strong></li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Add WhatsApp to Your App</div>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>In the App Dashboard scroll to <strong>Add Products to Your App</strong></li>
+            <li>Find <strong>WhatsApp</strong> and click <em>Set Up</em></li>
+            <li>Select your Business Portfolio and click <strong>Continue</strong></li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Get Your Phone Number ID &amp; Temporary Token</div>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Left sidebar → <strong>WhatsApp → API Setup</strong></li>
+            <li>Under <em>Send and receive messages</em> you'll see a test phone number</li>
+            <li>Copy the <strong>Phone Number ID</strong> → paste into <em>Phone Number ID</em> above</li>
+            <li>Copy the <strong>Temporary access token</strong> → paste into <em>Access Token</em> above</li>
+          </ol>
+          <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:6px;padding:10px;margin-top:8px;font-size:12px;color:var(--muted)">
+            ⚠️ The temporary token expires in <strong>24 hours</strong>. Follow Step 6 to get a permanent token before going to production.
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Start the Cloudflare Tunnel</div>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Go to the <strong>Tunnel tab</strong> in this dashboard</li>
+            <li>Follow the setup guide there (named tunnel for a stable URL, or quick tunnel for testing)</li>
+            <li>Click <strong>Start Tunnel</strong> — note the webhook domain that appears</li>
+            <li>Come back here and paste it into <em>Webhook Domain</em> above, then <strong>Save Config</strong></li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <div class="step-title">Configure the Webhook in Meta</div>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Meta App Dashboard → <strong>WhatsApp → Configuration</strong></li>
+            <li>Webhook section → click <strong>Edit</strong></li>
+            <li><strong>Callback URL:</strong> paste the Webhook URL shown at the top of this tab</li>
+            <li><strong>Verify Token:</strong> paste your <em>Verify Token</em> value from above</li>
+            <li>Click <strong>Verify and Save</strong> — Meta will call your endpoint to confirm it's live</li>
+            <li>Under <em>Webhook Fields</em> → find <strong>messages</strong> → click <em>Subscribe</em></li>
+          </ol>
+          <div style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.25);border-radius:6px;padding:10px;margin-top:8px;font-size:12px;color:var(--muted)">
+            ✓ After verification, incoming WhatsApp messages will appear on your daily dashboard.
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-num">7</div>
+        <div class="step-body">
+          <div class="step-title">Get a Permanent Access Token (Production)</div>
+          <p style="font-size:12px;color:var(--muted);margin-top:4px">The temporary token expires in 24 h. For persistent access:</p>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Go to <strong>business.facebook.com → Settings → Users → System Users</strong></li>
+            <li>Click <strong>Add</strong> → name it (e.g. <em>whatsapp-gateway</em>) → Role: <em>Admin</em> → Create</li>
+            <li>Click <strong>Add Assets</strong> → Apps → select your WhatsApp app → toggle <em>Full control</em> → Save</li>
+            <li>Click <strong>Generate New Token</strong> → select your app</li>
+            <li>Enable permissions: <code>whatsapp_business_messaging</code> and <code>whatsapp_business_management</code></li>
+            <li>Click <strong>Generate Token</strong> — <em>copy it immediately</em>, it is shown only once</li>
+            <li>Paste it into <em>Access Token</em> above and click <strong>Save Config</strong></li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-num">8</div>
+        <div class="step-body">
+          <div class="step-title">Add a Real Business Phone Number (Optional)</div>
+          <p style="font-size:12px;color:var(--muted);margin-top:4px">
+            The test number lets you send to up to 5 verified numbers. To receive from anyone, add your own number:
+          </p>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Meta App Dashboard → <strong>WhatsApp → Phone Numbers → Add Phone Number</strong></li>
+            <li>Enter your number → verify via SMS or phone call</li>
+            <li>Update the <em>Phone Number ID</em> in this dashboard to the new number's ID</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-num">9</div>
+        <div class="step-body">
+          <div class="step-title">Test End-to-End</div>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Send a WhatsApp message to your business phone number</li>
+            <li>Open the daily dashboard — the message appears in the WhatsApp card within seconds</li>
+            <li>If nothing appears after 30 s: check the Tunnel tab (tunnel must be running), and confirm the webhook is subscribed to <strong>messages</strong> in Meta</li>
+          </ol>
+        </div>
+      </div>
+
+    </div>
   </div>
 
   <!-- TUNNEL TAB -->
   <div class="tab-panel" id="tab-tunnel">
+
+    <!-- ── Status & controls ── -->
     <div class="card">
       <div class="card-title">Cloudflare Tunnel</div>
       <div class="tunnel-status s-dim" id="tunnel-status-box">
@@ -408,38 +558,165 @@
         <button class="btn btn-danger" id="btn-tunnel-stop" style="display:none" onclick="tunnelStop()">Stop Tunnel</button>
         <button class="btn btn-green" id="btn-tunnel-start" style="display:none" onclick="tunnelStart()">Start Tunnel</button>
       </div>
-      <hr>
+    </div>
+
+    <!-- ── Named-tunnel config file editor (shown only in named mode) ── -->
+    <div class="card" id="tunnel-cfg-card" style="display:none">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Tunnel Config</span>
+        <span style="font-size:11px;color:var(--muted);font-weight:400;font-family:monospace">.cloudflared/tunnel-whatsapp.yml</span>
+      </div>
+      <p class="hint" style="margin-bottom:8px">Edit below to customise ingress rules, then save. Changes take effect on the next tunnel start.</p>
+      <textarea id="tunnel-cfg-editor"
+        style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px;
+               background:var(--surface);border:1px solid var(--border);border-radius:6px;
+               color:var(--text);padding:10px;resize:vertical;min-height:140px;line-height:1.5"
+        spellcheck="false"></textarea>
+      <div id="tunnel-cfg-msg" class="msg" style="margin-top:6px"></div>
+      <div class="actions" style="margin-top:8px">
+        <button class="btn btn-secondary" onclick="saveTunnelConfig()">Save Config</button>
+      </div>
+    </div>
+
+    <!-- ── Setup Guide ── -->
+    <div class="card">
       <div class="card-title">Setup Guide</div>
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-body">
-          <div class="step-title">Install cloudflared</div>
-          <div class="code-row">
-            <code>brew install cloudflare/cloudflare/cloudflared</code>
-            <button class="copy-btn" onclick="copyText(this,'brew install cloudflare/cloudflare/cloudflared')">Copy</button>
+
+      <!-- mode picker -->
+      <div style="display:flex;gap:8px;margin-bottom:18px">
+        <button id="tmode-named" class="btn btn-secondary" onclick="setTunnelGuideMode('named')"
+          style="flex:1;font-size:13px">🌐 I have a domain</button>
+        <button id="tmode-quick" class="btn btn-secondary" onclick="setTunnelGuideMode('quick')"
+          style="flex:1;font-size:13px">⚡ No domain (quick tunnel)</button>
+      </div>
+
+      <!-- ── Path A: named tunnel ── -->
+      <div id="tguide-named">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Install cloudflared</div>
+            <div class="code-row"><code>brew install cloudflare/cloudflare/cloudflared</code>
+              <button class="copy-btn" onclick="copyText(this,'brew install cloudflare/cloudflare/cloudflared')">Copy</button></div>
+            <p class="hint" style="margin-top:4px">Windows: <code>winget install Cloudflare.cloudflared</code></p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Log in to Cloudflare</div>
+            <div class="code-row"><code>cloudflared login</code>
+              <button class="copy-btn" onclick="copyText(this,'cloudflared login')">Copy</button></div>
+            <p class="hint" style="margin-top:4px">Opens a browser — authorise the domain you want to use.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Create a named tunnel</div>
+            <div class="code-row"><code>cloudflared tunnel create whatsapp</code>
+              <button class="copy-btn" onclick="copyText(this,'cloudflared tunnel create whatsapp')">Copy</button></div>
+            <p class="hint" style="margin-top:4px">Copy the tunnel ID printed — you'll need it in the next step.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Route your subdomain to the tunnel</div>
+            <div class="code-row"><code>cloudflared tunnel route dns whatsapp webhook.yourdomain.com</code>
+              <button class="copy-btn" onclick="copyText(this,'cloudflared tunnel route dns whatsapp webhook.yourdomain.com')">Copy</button></div>
+            <p class="hint" style="margin-top:4px">Replace <strong>webhook.yourdomain.com</strong> with your subdomain (must be on Cloudflare).</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <div class="step-title">Update <code>mcp-gateway/.env</code></div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:monospace;font-size:12px;line-height:1.6;margin-top:6px">
+              WHATSAPP_WEBHOOK_DOMAIN=webhook.yourdomain.com<br>
+              CLOUDFLARE_TUNNEL_NAME=&lt;tunnel-id-from-step-3&gt;
+            </div>
+            <p class="hint" style="margin-top:4px">Then restart the gateway: <code>python mcp_gateway.py restart</code></p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <div class="step-title">Optionally customise the config file</div>
+            <p style="font-size:13px;color:var(--muted);margin-top:4px">
+              The gateway auto-generates <code>.cloudflared/tunnel-whatsapp.yml</code> from your .env on first start.
+              Use the <strong>Tunnel Config</strong> card above to edit ingress rules (e.g. add multiple hostnames)
+              without touching the file on disk.
+            </p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">7</div>
+          <div class="step-body">
+            <div class="step-title">Start the tunnel &amp; register webhook in Meta</div>
+            <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+              <li>Click <strong>Start Tunnel</strong> above</li>
+              <li>Meta Developer Console → your app → WhatsApp → Configuration</li>
+              <li>Webhook → Edit → Callback URL: <code>https://webhook.yourdomain.com/webhook/whatsapp</code></li>
+              <li>Verify Token: value of <code>WHATSAPP_VERIFY_TOKEN</code> in your .env</li>
+              <li>Subscribe to <strong>messages</strong> → Verify and Save</li>
+            </ol>
           </div>
         </div>
       </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-body">
-          <div class="step-title">Configure tunnel domain in the WhatsApp tab, then click "Start Tunnel" above</div>
-          <p class="hint">With your own domain the URL is stable; without one a random URL is assigned per session.</p>
+
+      <!-- ── Path B: quick tunnel (no domain) ── -->
+      <div id="tguide-quick" style="display:none">
+        <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--muted)">
+          ⚠️ Quick tunnels get a <strong>random URL that changes every restart</strong>.
+          You must update Meta's webhook URL each time. For a stable URL, use the <em>I have a domain</em> path.
         </div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-body">
-          <div class="step-title">Register the webhook in Meta</div>
-          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
-            <li>Meta Developer Console → your app → WhatsApp → Configuration</li>
-            <li>Webhook → Edit → paste the Webhook URL (from WhatsApp tab)</li>
-            <li>Enter your Verify Token</li>
-            <li>Subscribe to <strong>messages</strong> field → Verify and Save</li>
-          </ol>
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Install cloudflared</div>
+            <div class="code-row"><code>brew install cloudflare/cloudflare/cloudflared</code>
+              <button class="copy-btn" onclick="copyText(this,'brew install cloudflare/cloudflare/cloudflared')">Copy</button></div>
+            <p class="hint" style="margin-top:4px">No login needed for quick tunnels.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Clear tunnel name from <code>.env</code> (use quick mode)</div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:monospace;font-size:12px;line-height:1.6;margin-top:6px">
+              WHATSAPP_WEBHOOK_DOMAIN=<br>
+              CLOUDFLARE_TUNNEL_NAME=
+            </div>
+            <p class="hint" style="margin-top:4px">Leave both blank — a random <code>*.trycloudflare.com</code> URL is assigned on start and saved automatically.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Click Start Tunnel — then copy the URL</div>
+            <p style="font-size:13px;color:var(--muted);margin-top:4px">
+              The assigned URL appears in the status box above after a few seconds.
+              It looks like <code>abc-def-123.trycloudflare.com</code>.
+            </p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Register the webhook URL in Meta</div>
+            <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+              <li>Meta Developer Console → your app → WhatsApp → Configuration</li>
+              <li>Webhook → Edit → Callback URL: <code>https://&lt;your-quick-url&gt;/webhook/whatsapp</code></li>
+              <li>Verify Token: value of <code>WHATSAPP_VERIFY_TOKEN</code> in your .env</li>
+              <li>Subscribe to <strong>messages</strong> → Verify and Save</li>
+              <li>⚠️ Repeat this step every time you restart the tunnel</li>
+            </ol>
+          </div>
         </div>
       </div>
     </div>
+
   </div>
 
   <!-- API TOKEN TAB -->
@@ -804,12 +1081,42 @@ async function saveWa() {
 }
 
 // ── Tunnel tab ────────────────────────────────────────────────────────────────
+function setTunnelGuideMode(mode) {
+  document.getElementById('tguide-named').style.display = mode === 'named' ? '' : 'none';
+  document.getElementById('tguide-quick').style.display = mode === 'quick' ? '' : 'none';
+  document.getElementById('tmode-named').style.fontWeight = mode === 'named' ? '700' : '';
+  document.getElementById('tmode-quick').style.fontWeight = mode === 'quick' ? '700' : '';
+}
+
+async function saveTunnelConfig() {
+  const msg  = document.getElementById('tunnel-cfg-msg');
+  const body = document.getElementById('tunnel-cfg-editor').value.trim();
+  if (!body) { msg.textContent = 'Config is empty.'; msg.className = 'msg msg-err'; return; }
+  const d = await api('/api/tunnel/config', { method: 'POST', body: JSON.stringify({ content: body }) });
+  if (d.ok) { msg.textContent = '✓ Config saved — takes effect on next Start Tunnel'; msg.className = 'msg msg-ok'; }
+  else       { msg.textContent = d.detail || 'Save failed'; msg.className = 'msg msg-err'; }
+}
+
 async function loadTunnelStatus() {
   const d = await api('/api/tunnel/status');
   applyTunnelStatus(d.running ? 'ok' : 'dim');
   document.getElementById('tunnel-label').textContent = d.running ? 'Tunnel Running' : 'Tunnel Stopped';
+
+  // Show / populate config card for named tunnel mode
+  const cfgCard = document.getElementById('tunnel-cfg-card');
+  if (d.mode === 'named') {
+    cfgCard.style.display = '';
+    const cfg = await api('/api/tunnel/config');
+    document.getElementById('tunnel-cfg-editor').value = cfg.content || '';
+  } else {
+    cfgCard.style.display = 'none';
+  }
+
+  // Auto-select the matching guide path
+  setTunnelGuideMode(d.mode === 'quick' ? 'quick' : 'named');
+
   const urlLine = document.getElementById('tunnel-url-line');
-  if (d.running && d.domain) {
+if (d.running && d.domain) {
     urlLine.style.display = 'block';
     urlLine.innerHTML = `<a href="https://${d.domain}" target="_blank" style="color:var(--accent);text-decoration:none">https://${d.domain}</a>`;
   } else { urlLine.style.display = 'none'; }

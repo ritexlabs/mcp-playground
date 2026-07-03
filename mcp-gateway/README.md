@@ -160,6 +160,12 @@ Go to **APIs & Services → OAuth consent screen**:
 | `RATE_LIMIT_REQUESTS_PER_MINUTE` | No | `60` | Requests per minute per tool |
 | `TOKEN_EXPIRY_WARNING_HOURS` | No | `24` | Hours before expiry to proactively refresh |
 | `MCP_SERVER_NAME` | No | `personal-secure-gateway` | Server name shown to clients |
+| `WHATSAPP_ACCESS_TOKEN` | WhatsApp | — | Meta permanent system user token |
+| `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp | — | **Your registered number's ID** — see warning below |
+| `WHATSAPP_VERIFY_TOKEN` | WhatsApp | — | Any string; must match Meta webhook config |
+| `WHATSAPP_WEBHOOK_DOMAIN` | WhatsApp | — | Domain for Cloudflare Tunnel webhook endpoint |
+
+> **WhatsApp `WHATSAPP_PHONE_NUMBER_ID` — common mistake:** Meta's Developer Console shows two phone numbers. The test number (e.g. `+1 555-649-2367`) visible in "Step 1: Try it out" has a different Phone Number ID from your actual registered business number in "Step 2: Send a message from your registered number". Always use the ID of your **registered** number. Using the test number's ID causes replies to silently fail with Meta error `131047` (delivery blocked by sandbox restrictions).
 
 ---
 
@@ -280,6 +286,7 @@ echo "<package>>=x.y" >> requirements.txt
 | `GOOGLE_CLIENT_ID is not set` | Edit `.env` with your Google Cloud OAuth credentials |
 | `invalid_grant` on token refresh | Revoke at [myaccount.google.com/permissions](https://myaccount.google.com/permissions) and re-run `auth_all.py` |
 | Gateway not reachable | Check `./start.sh` output and `logs/gateway.log` |
+| WhatsApp replies accepted by Meta but never arrive on phone (error `131047`) | `WHATSAPP_PHONE_NUMBER_ID` is set to the **test number's** ID — use the registered number's ID instead (see Configuration Reference above) |
 
 **Clear keychain token and re-authenticate:**
 ```bash

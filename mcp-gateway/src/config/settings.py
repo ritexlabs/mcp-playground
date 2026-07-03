@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     WHATSAPP_VERIFY_TOKEN: str | None = None
     WHATSAPP_WEBHOOK_DOMAIN: str | None = None
 
+    # ── Cloudflare Tunnel (named tunnel) ──
+    # Set to a named tunnel's ID or name so the gateway runs it directly.
+    # When unset the gateway falls back to --hostname / quick-tunnel mode.
+    CLOUDFLARE_TUNNEL_NAME: str | None = None
+
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_REQUESTS_PER_MINUTE: int = 60
     TOKEN_EXPIRY_WARNING_HOURS: int = 24

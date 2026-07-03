@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import BentoCard, { CardHeader } from './BentoCard.jsx'
 
 const ACCENT = '#25D366'
@@ -229,6 +230,24 @@ function ConversationModal({ conv, onClose, onReplySent, onMarkRead }) {
   // Chronological order for display (oldest first)
   const chronological = [...conv.messages].sort((a, b) => a.timestamp - b.timestamp)
 
+  // Group messages by date for separators (computed before effects so grouped.length is stable)
+  const grouped = []
+  let lastDate  = null
+  for (const msg of chronological) {
+    const d = fmtDate(msg.timestamp)
+    if (d !== lastDate) { grouped.push({ type: 'date', label: d }); lastDate = d }
+    if (msg.direction === 'outgoing') {
+      // New format: outgoing reply stored as its own record
+      grouped.push({ type: 'reply', text: msg.body, repliedAt: msg.timestamp, delivery: msg.wa_delivery })
+    } else {
+      grouped.push({ type: 'msg', msg })
+      // Legacy format: reply embedded on the incoming message record
+      if (msg.reply_text) {
+        grouped.push({ type: 'reply', text: msg.reply_text, repliedAt: msg.replied_at, delivery: msg.wa_delivery })
+      }
+    }
+  }
+
   // Mark as read on open
   useEffect(() => {
     const lastMsg = conv.messages[0]
@@ -237,12 +256,12 @@ function ConversationModal({ conv, onClose, onReplySent, onMarkRead }) {
     }
   }, [conv.phone]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Scroll to bottom on open
+  // Scroll to bottom on open and whenever a new bubble is added (e.g. after sending a reply)
   useEffect(() => {
     if (threadRef.current) {
       threadRef.current.scrollTop = threadRef.current.scrollHeight
     }
-  }, [])
+  }, [grouped.length])
 
   async function send() {
     const txt = replyText.trim()
@@ -259,7 +278,7 @@ function ConversationModal({ conv, onClose, onReplySent, onMarkRead }) {
         }),
       })
       const d = await r.json()
-      if (!r.ok || d.error) { setSendErr(d.error || 'Send failed'); return }
+      if (!r.ok || d.error || d.detail) { setSendErr(d.detail || d.error || 'Send failed'); return }
       setReplyText('')
       onReplySent()
     } catch (e) {
@@ -273,20 +292,7 @@ function ConversationModal({ conv, onClose, onReplySent, onMarkRead }) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   }
 
-  // Group messages by date for separators
-  const grouped = []
-  let lastDate  = null
-  for (const msg of chronological) {
-    const d = fmtDate(msg.timestamp)
-    if (d !== lastDate) { grouped.push({ type: 'date', label: d }); lastDate = d }
-    grouped.push({ type: 'msg', msg })
-    // If this message has a reply, inject an outgoing bubble
-    if (msg.reply_text) {
-      grouped.push({ type: 'reply', text: msg.reply_text, repliedAt: msg.replied_at, delivery: msg.wa_delivery })
-    }
-  }
-
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
@@ -294,7 +300,7 @@ function ConversationModal({ conv, onClose, onReplySent, onMarkRead }) {
     >
       <div
         className="w-full max-w-lg flex flex-col rounded-2xl border border-white/[0.10] overflow-hidden"
-        style={{ background: 'rgba(9,14,20,0.97)', maxHeight: '85vh' }}
+        style={{ background: 'rgba(9,14,20,0.97)', height: 'min(600px, 85vh)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -406,7 +412,8 @@ function ConversationModal({ conv, onClose, onReplySent, onMarkRead }) {
           </p>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -662,8 +669,8 @@ export default function WhatsAppCard({ delay = 0 }) {
       {activeConv && (
         <ConversationModal
           conv={activeConv}
-          onClose={() => { setActiveConv(null); fetchMessages() }}
-          onReplySent={() => { fetchMessages() }}
+          onClose={() => setActiveConv(null)}
+          onReplySent={fetchMessages}
           onMarkRead={markRead}
         />
       )}

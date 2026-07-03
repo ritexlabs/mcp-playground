@@ -75,17 +75,48 @@ except Exception:
     pass
 
 
+_CFG_PATH = _BASE_DIR / ".cloudflared" / "tunnel-whatsapp.yml"
+
+
+def _detect_mode() -> str:
+    """Return 'named' | 'quick' | 'hostname' depending on current .env settings."""
+    if (settings.CLOUDFLARE_TUNNEL_NAME or "").strip():
+        return "named"
+    if (settings.WHATSAPP_WEBHOOK_DOMAIN or "").strip():
+        return "hostname"
+    return "quick"
+
+
 @router.get("/status")
 async def tunnel_status():
     running = is_running()
     raw = (settings.WHATSAPP_WEBHOOK_DOMAIN or _quick_tunnel_url or "")
     raw = raw.replace("https://", "").replace("http://", "").rstrip("/")
     return {
-        "running": running,
-        "domain": raw or None,
-        "quickUrl": _quick_tunnel_url or None,
-        "webhookUrl": f"https://{raw}/api/whatsapp/webhook" if raw else None,
+        "running":      running,
+        "mode":         _detect_mode(),
+        "domain":       raw or None,
+        "quickUrl":     _quick_tunnel_url or None,
+        "configExists": _CFG_PATH.exists(),
+        "webhookUrl":   f"https://{raw}/webhook/whatsapp" if raw else None,
     }
+
+
+@router.get("/config")
+async def tunnel_config_get():
+    if _CFG_PATH.exists():
+        return {"exists": True, "content": _CFG_PATH.read_text(), "path": str(_CFG_PATH.relative_to(_BASE_DIR))}
+    return {"exists": False, "content": "", "path": str(_CFG_PATH.relative_to(_BASE_DIR))}
+
+
+@router.post("/config")
+async def tunnel_config_save(body: dict):
+    content = (body.get("content") or "").strip()
+    if not content:
+        raise HTTPException(400, "content is required")
+    _CFG_PATH.parent.mkdir(exist_ok=True)
+    _CFG_PATH.write_text(content + "\n")
+    return {"ok": True}
 
 
 @router.post("/start")
@@ -98,11 +129,27 @@ async def tunnel_start():
     domain = (settings.WHATSAPP_WEBHOOK_DOMAIN or "").replace("https://", "").replace("http://", "").rstrip("/")
     port   = settings.MCP_PORT
 
-    args = ["cloudflared", "tunnel"]
-    if domain:
-        args += ["--hostname", domain, "--url", f"http://localhost:{port}"]
+    tunnel_name = (settings.CLOUDFLARE_TUNNEL_NAME or "").strip()
+    if tunnel_name:
+        _CFG_PATH.parent.mkdir(exist_ok=True)
+        # Only auto-generate the config when it doesn't already exist so that
+        # manual edits saved via POST /api/tunnel/config are preserved.
+        if not _CFG_PATH.exists():
+            cred_file = Path.home() / ".cloudflared" / f"{tunnel_name}.json"
+            cfg_lines = [f"tunnel: {tunnel_name}"]
+            if cred_file.exists():
+                cfg_lines.append(f"credentials-file: {cred_file}")
+            cfg_lines += ["", "ingress:"]
+            if domain:
+                cfg_lines.append(f"  - hostname: {domain}")
+                cfg_lines.append(f"    service: http://localhost:{port}")
+            cfg_lines.append("  - service: http_status:404")
+            _CFG_PATH.write_text("\n".join(cfg_lines) + "\n")
+        args = ["cloudflared", "tunnel", "--config", str(_CFG_PATH), "run"]
+    elif domain:
+        args = ["cloudflared", "tunnel", "--hostname", domain, "--url", f"http://localhost:{port}"]
     else:
-        args += ["--url", f"http://localhost:{port}"]
+        args = ["cloudflared", "tunnel", "--url", f"http://localhost:{port}"]
 
     try:
         proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
