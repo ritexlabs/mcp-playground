@@ -373,7 +373,7 @@ async def auth_google():
         )
     flow = _make_flow()
     auth_url, state = flow.authorization_url(
-        access_type="offline", prompt="consent", include_granted_scopes="true"
+        access_type="offline", prompt="consent"
     )
     _AUTH_FLOWS[state] = {"flow": flow, "created_at": time.time()}
     return RedirectResponse(auth_url)

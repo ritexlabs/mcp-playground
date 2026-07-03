@@ -113,11 +113,18 @@ The `daily-briefing-dashboard` is one frontend built on this gateway. Claude Des
 
 | File | Responsibility |
 |------|----------------|
-| `server.js` | Express API, MCP SSE client, CORS + security headers, proxy routes to gateway `/auth/*`, `/config/*`, `/indmoney/*` |
-| `public/app.js` | UI logic: fetch from `/api/*`, render all cards, per-card error tracking, retry on reconnect, settings dialog |
-| `public/index.html` | Dashboard shell; settings dialog (Location / Google / Stocks / IndMoney / Layout tabs); dialog placed outside all cards |
-| `public/style.css` | Dark glassmorphism theme, responsive grid, performance-tuned blur values |
-| `public/celebrations.js` | Birthday and anniversary detection from calendar events |
+| `server.js` | Express API, MCP SSE client, CORS + security headers, proxy routes to gateway `/auth/*`, `/config/*`, `/indmoney/*`; LLM proxy endpoints for AI wish generation |
+| `src/App.jsx` | Root React component; bento grid, `computeSpans()` for dynamic layout, card visibility state |
+| `src/components/WeatherCard.jsx` | Weather card with time-of-day animated backgrounds |
+| `src/components/CalendarCard.jsx` | Today's schedule card; 24h compact time format; time-of-day backgrounds |
+| `src/components/CelebrationsCard.jsx` | Birthday/anniversary card; AI wish generation via `/api/wishes/generate`; multi-event tab UI |
+| `src/components/IndMoneyCard.jsx` | Net worth / IndMoney portfolio card |
+| `src/components/StocksCard.jsx` | Stock portfolio card (reads Google Sheet) |
+| `src/components/SettingsModal.jsx` | Settings dialog: Location / Google / Stocks / IndMoney / AI / Layout tabs |
+| `src/components/BentoCard.jsx` | Shared card shell (glass border, header, skeleton, error state) |
+| `src/data/wishMessages.js` | Template wish messages (birthday, anniversary, work-anniversary) used as AI fallback |
+| `src/hooks/useDashboard.js` | Polling hook: fetches all card data, MCP status, retry on reconnect |
+| `src/utils/parsers.js` | `parseCalendarEvents()`, `parseCelebrations()`, `formatTime()` (24h, `en-GB`) |
 
 ### Management Scripts
 
@@ -136,6 +143,8 @@ All scripts are cross-platform (Windows, macOS, Linux). Shell `.sh` wrappers rem
 ---
 
 ## HTTP Endpoints
+
+### MCP Gateway (`http://127.0.0.1:8000`)
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -156,6 +165,16 @@ All scripts are cross-platform (Windows, macOS, Linux). Shell `.sh` wrappers rem
 | `POST` | `/config/indmoney/save` | Save IndMoney MCP URL and display tool preference |
 | `GET` | `/indmoney/data` | Fetch data for the configured display tool |
 | `GET` | `/indmoney/overview` | Fetch networth + SIP + holdings overview for the dashboard card |
+
+### Dashboard Server (`http://localhost:8080`)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/weather` | Proxies weather data from gateway |
+| `GET` | `/api/calendar` | Proxies calendar events from gateway |
+| `GET` | `/api/celebrations` | Proxies birthday/anniversary events |
+| `GET` | `/api/config/llm/env-status` | Returns whether `LLM_PROVIDER`+`LLM_API_KEY` are set in server `.env` |
+| `POST` | `/api/wishes/generate` | Generates personalised wish messages via LLM (browser config → server `.env` → template fallback) |
 
 ---
 
@@ -297,6 +316,59 @@ _build_headers()
     └── return {"Authorization": "Bearer <access_token>"}
 ```
 
+### AI Wish Generation
+
+```
+Browser (CelebrationsCard)   Dashboard server (server.js)       LLM API
+          │                            │                            │
+          │── POST /api/wishes/generate►│                            │
+          │   body: { name, type,      │                            │
+          │           llmConfig? }     │                            │
+          │                            │── llmConfig present?       │
+          │                            │   YES → use browser key    │
+          │                            │   NO  → check .env         │
+          │                            │         LLM_API_KEY        │
+          │                            │                            │
+          │                            │── POST to OpenAI/Anthropic►│
+          │                            │◄── generated messages ─────│
+          │                            │                            │
+          │◄── { messages[], source:   │                            │
+          │      'ai'|'none'|'error' } │                            │
+          │                            │
+          │── source='none'?           │
+          │   → use wishMessages.js    │
+          │     template fallback      │
+```
+
+Key properties:
+- Browser-side API keys (from Settings → AI tab) are stored in `localStorage` and sent per-request — never persisted server-side.
+- Server `.env` `LLM_API_KEY` is the admin fallback when no browser key is configured.
+- `source` field in the response lets the UI badge "✨ AI" vs "📄 Templates".
+- Duplicate model prevention: same provider + model combination cannot be added twice in the AI tab.
+
+### Dynamic Card Layout
+
+```
+App.jsx
+    │
+    ├── FIXED_ORDER = ['weather','calendar','celebrations','indmoney','stocks']
+    │   (order never changes — only visibility is user-controlled)
+    │
+    ├── cardLayout.hidden = Set of hidden card IDs (stored in localStorage)
+    │
+    ├── visibleCards = FIXED_ORDER.filter(id => !hidden.has(id))
+    │
+    └── computeSpans(visibleCards) → { id: 'col-span-N md:col-span-M', ... }
+          │
+          ├── trio = ['weather','calendar','celebrations'] ∩ visible
+          │   length 3 → each col-span-4   (equal thirds)
+          │   length 2 → each col-span-6   (halves)
+          │   length 1 → col-span-12       (full width)
+          │
+          ├── indmoney → always col-span-12
+          └── stocks   → always col-span-12
+```
+
 ---
 
 ## Security Model
@@ -404,3 +476,7 @@ Clients (Claude Desktop, dashboard, etc.) see a single flat tool list and need n
 | `MCP_GATEWAY_URL` | No | Gateway base URL (default: `http://127.0.0.1:8000`) |
 | `PORT` | No | Dashboard listen port (default: `8080`) |
 | `DASHBOARD_ORIGIN` | No | Allowed CORS origin — must match gateway's `DASHBOARD_ORIGIN` (default: `http://localhost:8080`) |
+| `LLM_PROVIDER` | No | Server-side LLM provider: `openai` \| `anthropic` \| `custom` (fallback for AI wishes) |
+| `LLM_API_KEY` | No | API key for the server-side LLM provider |
+| `LLM_MODEL` | No | Model name (defaults: openai → `gpt-4o-mini`, anthropic → `claude-haiku-4-5-20251001`) |
+| `LLM_BASE_URL` | No | Base URL for custom OpenAI-compatible providers (e.g. Ollama, LM Studio) |

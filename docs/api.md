@@ -1,6 +1,13 @@
 # API Reference
 
-All endpoints are served by the MCP Gateway at `http://127.0.0.1:8000` (default).
+This document covers two servers:
+
+- **MCP Gateway** at `http://127.0.0.1:8000` — Python/FastAPI; MCP tools, Google OAuth, IndMoney OAuth.
+- **Dashboard Server** at `http://localhost:8080` — Node/Express; data proxies, LLM wish generation.
+
+---
+
+## MCP Gateway (`http://127.0.0.1:8000`)
 
 ---
 
@@ -213,3 +220,88 @@ All errors return JSON with a consistent shape:
 | `SERVICE_ERROR` | 500 | Downstream API failure |
 | `TOOL_ERROR` | 500 | Unexpected tool execution error |
 | `UNKNOWN_TOOL` | 404 | Tool name not registered |
+
+---
+
+## Dashboard Server (`http://localhost:8080`)
+
+The dashboard's Express server proxies data from the gateway and adds LLM endpoints. All `/api/*` routes below are on port 8080.
+
+---
+
+### `GET /api/config/llm/env-status`
+
+Returns whether the server has an LLM configured in its `.env`.
+
+**Response**
+```json
+{
+  "configured": true,
+  "provider": "openai",
+  "model": "gpt-4o-mini"
+}
+```
+
+When `configured` is `false`, the `provider` and `model` fields are absent. The browser uses this to show/hide the "No LLM configured in server .env" warning in the AI settings tab.
+
+---
+
+### `POST /api/wishes/generate`
+
+Generates personalised wish messages for a birthday or anniversary. Tries browser-supplied LLM config first, then falls back to server `.env`, then returns `null` messages (client uses template fallback).
+
+**Request body**
+```json
+{
+  "name": "Alice",
+  "type": "birthday",
+  "subType": null,
+  "llmConfig": {
+    "provider": "openai",
+    "apiKey": "sk-...",
+    "model": "gpt-4o-mini",
+    "baseUrl": ""
+  }
+}
+```
+
+- `type`: `"birthday"` | `"anniversary"`
+- `subType`: `"work-anniversary"` | `null`
+- `llmConfig`: optional; when provided, the server uses the browser-supplied key rather than `.env`.
+
+**Response — 200 OK (AI generated)**
+```json
+{
+  "messages": [
+    "Wishing you a wonderful birthday, Alice! ...",
+    "Happy Birthday! Another year of amazing achievements..."
+  ],
+  "source": "ai"
+}
+```
+
+**Response — 200 OK (no LLM configured)**
+```json
+{
+  "messages": null,
+  "source": "none"
+}
+```
+
+**Response — 200 OK (LLM error)**
+```json
+{
+  "messages": null,
+  "source": "error"
+}
+```
+
+When `messages` is `null`, the Celebrations card uses `wishMessages.js` template messages as the fallback.
+
+**Supported providers**
+
+| `provider` | Notes |
+|-----------|-------|
+| `openai` | Uses `https://api.openai.com/v1/chat/completions` |
+| `anthropic` | Uses `https://api.anthropic.com/v1/messages` |
+| `custom` | OpenAI-compatible endpoint; `baseUrl` is required |

@@ -140,7 +140,8 @@ Open the dashboard and click **Settings** (top-right):
 | **Google** | Connect / disconnect Google OAuth (opens the gateway's `/auth/google`) |
 | **Stocks** | Browse your Drive spreadsheets and pick the portfolio sheet |
 | **IndMoney** | Connect / disconnect IndMoney via OAuth 2.1 + PKCE; set which tool to show on the card |
-| **Layout** | Show/hide cards and drag to reorder them |
+| **AI** | Add/edit/delete LLM models for AI wish generation; test connection; set the active model |
+| **Layout** | Show/hide cards (Weather, Calendar, Celebrations, Net Worth, Stocks); layout adjusts automatically |
 
 ---
 
@@ -168,12 +169,70 @@ mcp-gateway/src/
 ├── config/
 │   ├── settings.py               # pydantic-settings, _find_env_file()
 │   └── secrets.py                # keyring wrappers, update_env_setting()
+│                                 # store/clear functions also update in-memory settings object
 │
 └── utils/
     ├── errors.py                 # MCPError, AuthenticationError, ServiceError, ...
     ├── logger.py                 # log_tool_access(), log_auth_event(), log_system_event()
     └── rate_limiter.py           # Token-bucket rate limiter
+
+daily-briefing-dashboard/
+├── server.js                   # Express server (port 8080); gateway proxy; LLM endpoints
+│
+└── src/
+    ├── App.jsx                 # Root component; bento grid; computeSpans(); card layout state
+    │
+    ├── components/
+    │   ├── BentoCard.jsx       # Shared card shell (glass border, header, skeleton, error)
+    │   ├── WeatherCard.jsx     # Weather + time-of-day animated backgrounds
+    │   ├── CalendarCard.jsx    # Today's schedule; 24h compact time (HH:MM–HH:MM)
+    │   ├── CelebrationsCard.jsx # Birthday/anniversary; AI wish generation; multi-event tabs
+    │   ├── IndMoneyCard.jsx    # Net worth / portfolio
+    │   ├── StocksCard.jsx      # Stock portfolio (Google Sheet)
+    │   ├── SettingsModal.jsx   # Location / Google / Stocks / IndMoney / AI / Layout tabs
+    │   ├── Header.jsx          # Refresh + Settings button
+    │   └── StatusPill.jsx      # MCP connection status indicator
+    │
+    ├── hooks/
+    │   └── useDashboard.js     # Polling hook; fetch all card data; reconnect retry
+    │
+    ├── data/
+    │   └── wishMessages.js     # Birthday/anniversary template messages (AI fallback)
+    │
+    └── utils/
+        └── parsers.js          # parseCalendarEvents(); parseCelebrations(); formatTime() (24h)
 ```
+
+---
+
+## AI Wish Generation
+
+The Celebrations card generates personalised birthday/anniversary messages using an LLM. Two configuration paths are supported:
+
+### Option A — Browser-side key (per-user)
+
+1. Open dashboard → Settings → AI tab.
+2. Click **Add Model**, enter your provider (OpenAI / Anthropic / Custom), API key, and model name.
+3. Click **Set Active**. The key is stored in `localStorage` only — it never leaves the browser except as part of the wish-generation request to `/api/wishes/generate`.
+4. The same model can only be added once (duplicate provider + model is blocked).
+
+### Option B — Server-side key (shared / admin)
+
+Edit `daily-briefing-dashboard/.env`:
+
+```
+LLM_PROVIDER=openai
+LLM_API_KEY=<your-api-key>
+LLM_MODEL=gpt-4o-mini
+```
+
+Restart the dashboard server. This is the fallback when no browser-side model is active.
+
+### Fallback chain
+
+`browser llmConfig` → `server .env LLM_API_KEY` → `wishMessages.js` template messages
+
+The response includes `source: 'ai' | 'none' | 'error'` so the UI shows the correct badge.
 
 ---
 

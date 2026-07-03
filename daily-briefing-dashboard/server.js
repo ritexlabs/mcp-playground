@@ -1,16 +1,17 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
 import { execFile } from "child_process";
 import { fileURLToPath } from "url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import dotenv from "dotenv";
 
-dotenv.config();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -21,7 +22,11 @@ const DASHBOARD_ORIGIN = process.env.DASHBOARD_ORIGIN || "http://localhost:8080"
 
 app.use(cors({ origin: DASHBOARD_ORIGIN }));
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
+// Serve the React build (dist/) when available, fall back to the legacy public/ folder.
+const DIST_DIR   = path.join(__dirname, "dist");
+const PUBLIC_DIR = path.join(__dirname, "public");
+const SERVE_DIR  = fs.existsSync(path.join(DIST_DIR, "index.html")) ? DIST_DIR : PUBLIC_DIR;
+app.use(express.static(SERVE_DIR));
 
 // Security headers
 app.use((_req, res, next) => {
@@ -354,8 +359,121 @@ app.delete("/api/config/indmoney/token", async (req, res) => {
   }
 });
 
+// ── LLM wish generation ───────────────────────────────────────────────────────
+
+const LLM_DEFAULT_MODELS = {
+  openai:    'gpt-4o-mini',
+  anthropic: 'claude-haiku-4-5-20251001',
+  custom:    'gpt-4o-mini',
+}
+
+// Returns configured state from env without exposing the key
+app.get('/api/config/llm/env-status', (req, res) => {
+  const configured = !!(process.env.LLM_API_KEY || process.env.LLM_BASE_URL)
+  res.json({ configured, provider: process.env.LLM_PROVIDER || null })
+})
+
+// POST { name, type, subType, llmConfig?: { provider, apiKey, model, baseUrl } }
+// llmConfig from request takes precedence over .env values
+app.post('/api/wishes/generate', async (req, res) => {
+  const { name, type, subType, llmConfig } = req.body || {}
+
+  const provider = llmConfig?.provider || process.env.LLM_PROVIDER || 'openai'
+  const apiKey   = llmConfig?.apiKey   || process.env.LLM_API_KEY  || ''
+  const model    = llmConfig?.model    || process.env.LLM_MODEL    || LLM_DEFAULT_MODELS[provider] || 'gpt-4o-mini'
+  const baseUrl  = llmConfig?.baseUrl  || process.env.LLM_BASE_URL || ''
+
+  if (!apiKey && !baseUrl) {
+    return res.json({ messages: null, source: 'none', reason: 'No LLM configured' })
+  }
+
+  const celebType =
+    type === 'birthday'             ? 'birthday' :
+    subType === 'work-anniversary'  ? 'work anniversary' : 'anniversary'
+
+  const prompt =
+    `Write 3 distinct, heartfelt ${celebType} messages for ${name}.\n` +
+    `Requirements:\n` +
+    `- Each message 2–4 sentences, warm and personal\n` +
+    `- Include relevant emojis\n` +
+    `- Make each message clearly different in tone: one emotional/heartfelt, one fun/celebratory, one inspirational\n` +
+    `Return ONLY valid JSON with no extra text: {"messages":["msg1","msg2","msg3"]}`
+
+  try {
+    let messages
+    if (provider === 'anthropic') {
+      messages = await llmCallAnthropic(apiKey, model, prompt)
+    } else {
+      const url = baseUrl
+        ? `${baseUrl.replace(/\/$/, '')}/chat/completions`
+        : 'https://api.openai.com/v1/chat/completions'
+      messages = await llmCallOpenAI(url, apiKey, model, prompt)
+    }
+    res.json({ messages, source: 'ai' })
+  } catch (err) {
+    console.error('LLM wish generation failed:', err.message)
+    res.json({ messages: null, source: 'error', reason: err.message })
+  }
+})
+
+async function llmCallOpenAI(url, apiKey, model, prompt) {
+  const headers = { 'Content-Type': 'application/json' }
+  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
+
+  const r = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: 'You are a warm, thoughtful assistant. Always respond with valid JSON only — no markdown, no extra text.' },
+        { role: 'user',   content: prompt },
+      ],
+      temperature: 0.85,
+      max_tokens: 900,
+    }),
+  })
+  if (!r.ok) {
+    const body = await r.text()
+    throw new Error(`LLM API ${r.status}: ${body.slice(0, 200)}`)
+  }
+  const d = await r.json()
+  return llmParseMessages(d.choices?.[0]?.message?.content || '')
+}
+
+async function llmCallAnthropic(apiKey, model, prompt) {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 900,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+  if (!r.ok) {
+    const body = await r.text()
+    throw new Error(`Anthropic API ${r.status}: ${body.slice(0, 200)}`)
+  }
+  const d = await r.json()
+  return llmParseMessages(d.content?.[0]?.text || '')
+}
+
+function llmParseMessages(text) {
+  const match = text.match(/\{[\s\S]*"messages"[\s\S]*\}/)
+  if (!match) throw new Error('No JSON object found in LLM response')
+  const parsed = JSON.parse(match[0])
+  if (!Array.isArray(parsed.messages) || !parsed.messages.length)
+    throw new Error('messages array missing or empty')
+  return parsed.messages.slice(0, 3).filter(m => typeof m === 'string' && m.trim())
+}
+
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.sendFile(path.join(SERVE_DIR, "index.html"));
 });
 
 app.listen(PORT, () => {

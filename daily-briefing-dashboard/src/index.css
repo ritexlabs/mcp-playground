@@ -1,0 +1,253 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design tokens ──────────────────────────────────────── */
+:root {
+  --bg-void:     #010409;
+  --bg-deep:     #020617;
+  --bg-base:     #0b1120;
+  --surface:     rgba(11, 18, 38, 0.65);
+  --border-dim:  rgba(255, 255, 255, 0.06);
+  --border-card: rgba(255, 255, 255, 0.08);
+
+  /* Card accents */
+  --cyan:    #22d3ee;
+  --indigo:  #818cf8;
+  --emerald: #34d399;
+  --violet:  #a78bfa;
+  --amber:   #fbbf24;
+  --rose:    #fb7185;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────── */
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 99px; }
+
+/* ── Animated background orbs ───────────────────────────── */
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(80px);
+  opacity: 0.18;
+  will-change: transform;
+  contain: layout style;
+}
+.orb-1 {
+  width: 45vw; height: 45vw;
+  background: radial-gradient(circle, #1e40af 0%, transparent 70%);
+  top: -15vw; left: -10vw;
+  animation: orbDrift1 22s ease-in-out infinite;
+}
+.orb-2 {
+  width: 38vw; height: 38vw;
+  background: radial-gradient(circle, #7c3aed 0%, transparent 70%);
+  bottom: -10vw; right: -8vw;
+  animation: orbDrift2 28s ease-in-out infinite;
+}
+.orb-3 {
+  width: 28vw; height: 28vw;
+  background: radial-gradient(circle, #0f766e 0%, transparent 70%);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  animation: orbDrift3 18s ease-in-out infinite;
+}
+
+@keyframes orbDrift1 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%      { transform: translate(4vw, 6vw) scale(1.05); }
+  66%      { transform: translate(-3vw, 2vw) scale(0.96); }
+}
+@keyframes orbDrift2 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  40%      { transform: translate(-5vw,-4vw) scale(1.08); }
+  70%      { transform: translate(3vw,-2vw) scale(0.94); }
+}
+@keyframes orbDrift3 {
+  0%,100% { transform: translate(-50%,-50%) scale(1); }
+  50%      { transform: translate(-50%,-50%) scale(1.12); }
+}
+
+/* ── Weather card scene animations ─────────────────────── */
+@keyframes wx-rain {
+  from { transform: rotate(8deg) translateY(-30px); opacity: 0; }
+  6%   { opacity: 1; }
+  94%  { opacity: 0.85; }
+  to   { transform: rotate(8deg) translateY(380px); opacity: 0; }
+}
+@keyframes wx-snow {
+  0%   { transform: translateY(-10px) translateX(0px); opacity: 0; }
+  8%   { opacity: 1; }
+  90%  { opacity: 0.7; }
+  100% { transform: translateY(380px) translateX(var(--wx-drift, 20px)); opacity: 0; }
+}
+@keyframes wx-twinkle {
+  0%,100% { opacity: 0.05; transform: scale(0.6); }
+  50%     { opacity: 1;    transform: scale(1.5); }
+}
+@keyframes wx-sun-glow {
+  0%,100% { opacity: 0.55; transform: scale(1);    }
+  50%     { opacity: 0.95; transform: scale(1.14); }
+}
+@keyframes wx-sun-rays {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes wx-fog-drift {
+  from { transform: translateX(-8%); }
+  to   { transform: translateX(8%);  }
+}
+@keyframes wx-cloud-drift {
+  from { transform: translateX(-14px); }
+  to   { transform: translateX(14px);  }
+}
+@keyframes wx-lightning {
+  0%, 87%, 100%  { opacity: 0; }
+  88%, 90%       { opacity: 0.85; }
+  89%, 91%       { opacity: 0; }
+  92%            { opacity: 0.55; }
+  93%            { opacity: 0; }
+}
+@keyframes wx-moon-pulse {
+  0%,100% { opacity: 0.5; transform: scale(1); }
+  50%     { opacity: 0.9; transform: scale(1.1); }
+}
+@keyframes wx-confetti {
+  0%   { transform: translateY(-15px) rotate(0deg);   opacity: 0; }
+  8%   { opacity: 1; }
+  90%  { opacity: 0.7; }
+  100% { transform: translateY(380px) rotate(560deg); opacity: 0; }
+}
+@keyframes wx-rise {
+  0%   { transform: translateY(110%) translateX(0px); opacity: 0; }
+  8%   { opacity: 1; }
+  90%  { opacity: 0.55; }
+  100% { transform: translateY(-20px) translateX(var(--wx-drift, 0px)); opacity: 0; }
+}
+
+/* ── Skeleton shimmer ───────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 0%,
+    rgba(255,255,255,0.09) 50%,
+    rgba(255,255,255,0.04) 100%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 2s linear infinite;
+  border-radius: 6px;
+}
+
+/* ── Card glass panel ───────────────────────────────────── */
+.glass-card {
+  background: var(--surface);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid var(--border-dim);
+  border-radius: 20px;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 20px 60px -10px rgba(0,0,0,0.5);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.glass-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* ── Card label style ───────────────────────────────────── */
+.card-label {
+  @apply text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500;
+}
+
+/* ── Metric grid ────────────────────────────────────────── */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+.metric-item {
+  @apply flex flex-col gap-0.5 rounded-xl p-3 bg-white/[0.04];
+}
+
+/* ── Broker filter tabs ─────────────────────────────────── */
+.broker-tab {
+  @apply px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all duration-150 cursor-pointer whitespace-nowrap;
+}
+.broker-tab.active {
+  @apply bg-white/10 text-white;
+}
+.broker-tab:hover:not(.active) {
+  @apply bg-white/[0.06] text-slate-300;
+}
+
+/* ── Settings dialog backdrop ───────────────────────────── */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeInUp 0.2s ease-out forwards;
+}
+
+/* ── Settings tab ───────────────────────────────────────── */
+.settings-tab {
+  @apply px-4 py-2 text-sm font-medium rounded-lg transition-all duration-150 cursor-pointer;
+}
+.settings-tab.active   { @apply bg-white/10 text-white; }
+.settings-tab:not(.active) { @apply text-slate-400 hover:text-slate-300 hover:bg-white/[0.05]; }
+
+/* ── Auth status dot ────────────────────────────────────── */
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.ok      { background: #34d399; box-shadow: 0 0 8px #34d39980; }
+.status-dot.err     { background: #fb7185; box-shadow: 0 0 8px #fb718580; }
+.status-dot.checking { background: #fbbf24; animation: blinkDot 1s ease-in-out infinite; }
+
+/* ── Form input ─────────────────────────────────────────── */
+.cfg-input {
+  @apply w-full rounded-xl bg-white/[0.05] border border-white/[0.08] px-4 py-2.5 text-sm text-slate-200 placeholder-slate-500
+         focus:outline-none focus:border-white/20 focus:bg-white/[0.07] transition-all duration-150;
+}
+.cfg-select {
+  @apply w-full rounded-xl bg-white/[0.05] border border-white/[0.08] px-4 py-2.5 text-sm text-slate-200
+         focus:outline-none focus:border-white/20 transition-all duration-150 cursor-pointer;
+}
+
+/* ── Buttons ────────────────────────────────────────────── */
+.btn-primary {
+  @apply px-4 py-2 rounded-xl text-sm font-semibold bg-white text-slate-900
+         hover:bg-slate-100 active:scale-95 transition-all duration-150 cursor-pointer;
+}
+.btn-secondary {
+  @apply px-4 py-2 rounded-xl text-sm font-medium bg-white/[0.07] text-slate-300 border border-white/[0.08]
+         hover:bg-white/[0.12] hover:text-white active:scale-95 transition-all duration-150 cursor-pointer;
+}
+.btn-danger {
+  @apply px-4 py-2 rounded-xl text-sm font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20
+         hover:bg-rose-500/20 active:scale-95 transition-all duration-150 cursor-pointer;
+}
+.btn-icon {
+  @apply flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-400 bg-white/[0.05] border border-white/[0.06]
+         hover:bg-white/[0.10] hover:text-white active:scale-95 transition-all duration-150 cursor-pointer;
+}
+
+/* ── Reduced motion ─────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, .orb { animation: none !important; transition: none !important; }
+}
