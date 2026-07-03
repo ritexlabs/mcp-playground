@@ -1,38 +1,13 @@
 import { useState, useEffect } from 'react'
 
 const TABS = [
-  { id: 'location',  label: 'Location' },
-  { id: 'google',    label: 'Google'   },
-  { id: 'stocks',    label: 'Stocks'   },
-  { id: 'indmoney',  label: 'IndMoney' },
-  { id: 'ai',        label: 'AI'       },
-  { id: 'layout',    label: 'Layout'   },
+  { id: 'location', label: 'Location' },
+  { id: 'gateway',  label: 'Gateway'  },
+  { id: 'ai',       label: 'AI'       },
+  { id: 'layout',   label: 'Layout'   },
 ]
 
 const MODAL_ACCENT = '#818cf8'
-
-async function getGatewayUrl() {
-  try {
-    const r = await fetch('/api/config/gateway-url')
-    const d = await r.json()
-    return d.url || 'http://127.0.0.1:8000'
-  } catch {
-    return 'http://127.0.0.1:8000'
-  }
-}
-
-// ── Reusable status row ───────────────────────────────────────────────────────
-
-function StatusRow({ state }) {
-  const cls = { ok: 'ok', err: 'err', checking: 'checking' }[state] ?? 'err'
-  const labels = { ok: 'Connected', err: 'Not connected', checking: 'Checking…' }
-  return (
-    <div className="flex items-center gap-2 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-      <span className={`status-dot ${cls}`} />
-      <span className="text-sm text-slate-300">{labels[state]}</span>
-    </div>
-  )
-}
 
 // ── Tab: Location ─────────────────────────────────────────────────────────────
 
@@ -51,251 +26,115 @@ function LocationTab({ location, onSave, onClose }) {
         />
       </div>
       <div className="flex gap-2 justify-end pt-2">
-        <button onClick={onClose}  className="btn-secondary">Cancel</button>
-        <button onClick={() => onSave(city)} className="btn-primary" disabled={!city.trim()}>Save Location</button>
+        <button onClick={onClose} className="btn-secondary">Cancel</button>
+        <button onClick={() => onSave(city)} className="btn-primary" disabled={!city.trim()}>
+          Save Location
+        </button>
       </div>
     </div>
   )
 }
 
-// ── Tab: Google ───────────────────────────────────────────────────────────────
+// ── Tab: Gateway ──────────────────────────────────────────────────────────────
 
-function GoogleTab({ onClose }) {
-  const [status, setStatus]   = useState('checking')
-  const [label, setLabel]     = useState('Checking…')
-  const [showConnect, setConnect] = useState(false)
-  const [showDisconn, setDisconn] = useState(false)
+function CopyButton({ text, label }) {
+  const [copied, setCopied] = useState(false)
+  function copy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    }).catch(() => {})
+  }
+  return (
+    <button
+      onClick={copy}
+      className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors flex-shrink-0"
+      style={{
+        background: copied ? 'rgba(129,140,248,0.15)' : 'rgba(255,255,255,0.07)',
+        color: copied ? MODAL_ACCENT : '#94a3b8',
+      }}
+    >
+      {copied ? '✓ Copied' : (label || 'Copy')}
+    </button>
+  )
+}
 
-  async function load() {
+function GatewayTab({ onClose }) {
+  const [status,     setStatus]     = useState('checking')
+  const [gatewayUrl, setGatewayUrl] = useState('http://127.0.0.1:8000')
+
+  useEffect(() => {
+    fetch('/api/config/gateway-url')
+      .then(r => r.json())
+      .then(d => setGatewayUrl(d.url || 'http://127.0.0.1:8000'))
+      .catch(() => {})
+    checkStatus()
+  }, [])
+
+  async function checkStatus() {
     setStatus('checking')
     try {
-      const r = await fetch('/api/config/auth/status')
-      const d = await r.json()
-      if (d.authenticated) {
-        setStatus('ok'); setLabel('Connected')
-        setConnect(false); setDisconn(true)
-      } else {
-        setStatus('err'); setLabel('Not connected')
-        setConnect(true);  setDisconn(false)
-      }
+      const d = await fetch('/api/status').then(r => r.json())
+      setStatus(d.connected ? 'ok' : 'err')
     } catch {
-      setStatus('err'); setLabel('Could not reach gateway')
+      setStatus('err')
     }
   }
 
-  useEffect(() => { load() }, [])
-
-  async function disconnect() {
-    await fetch('/api/config/auth/token', { method: 'DELETE' })
-    load()
-  }
+  const dashUrl = `${gatewayUrl}/dashboard`
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-slate-400">Authorise Google access for Gmail, Calendar, Drive, and Sheets.</p>
-      <div className="flex items-center gap-2 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-        <span className={`status-dot ${status}`} />
-        <span className="text-sm text-slate-300">{label}</span>
-      </div>
-      <div className="flex gap-2 justify-end flex-wrap">
-        <button onClick={onClose}  className="btn-secondary">Close</button>
-        <button onClick={load}     className="btn-secondary">Refresh</button>
-        {showConnect && (
-          <button
-            onClick={async () => {
-              const base = await getGatewayUrl()
-              window.open(`${base}/auth/google`, '_blank', 'noopener,noreferrer')
-            }}
-            className="btn-primary"
-          >
-            Connect Google
-          </button>
-        )}
-        {showDisconn && (
-          <button onClick={disconnect} className="btn-danger">Disconnect</button>
-        )}
-      </div>
-      {showConnect && (
-        <p className="text-xs text-slate-500">
-          Click <strong className="text-slate-400">Connect Google</strong> — a browser tab opens. Sign in, grant all permissions, then return and click Refresh.
-        </p>
-      )}
-    </div>
-  )
-}
-
-// ── Tab: Stocks ───────────────────────────────────────────────────────────────
-
-function StocksTab({ onClose }) {
-  const [status, setStatus] = useState('checking')
-  const [label,  setLabel]  = useState('Checking…')
-  const [sheets, setSheets] = useState([])
-  const [selected, setSelected] = useState('')
-  const [showPicker, setShowPicker] = useState(false)
-
-  async function loadStatus() {
-    try {
-      const r = await fetch('/api/config/auth/status')
-      const d = await r.json()
-      const id = d.spreadsheet_id
-      if (id) { setStatus('ok');  setLabel(`Sheet: ${id}`) }
-      else     { setStatus('err'); setLabel('No sheet configured') }
-    } catch { setStatus('err'); setLabel('Could not reach gateway') }
-  }
-
-  async function browseSheets() {
-    try {
-      const r = await fetch('/api/config/sheets')
-      const d = await r.json()
-      // gateway returns array directly or wrapped as {sheets:[...]}
-      const list = Array.isArray(d) ? d : (d.sheets || [])
-      if (!r.ok) {
-        if (r.status === 401) alert('Google session expired.\n\nGo to the Google tab and click Connect Google to re-authenticate.')
-        else alert(d?.message || d?.error || 'Could not load sheets')
-        return
-      }
-      if (list.length === 0) { alert('No Google Sheets found in your Drive.'); return }
-      setSheets(list)
-      setShowPicker(true)
-    } catch (e) {
-      alert(`Failed to load sheets: ${e.message}`)
-    }
-  }
-
-  async function saveSheet() {
-    if (!selected) return
-    await fetch(`/api/config/sheets/${encodeURIComponent(selected)}`, { method: 'POST' })
-    setShowPicker(false)
-    loadStatus()
-  }
-
-  useEffect(() => { loadStatus() }, [])
-
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-slate-400">Choose which Google Sheet holds your stock portfolio.</p>
-      <div className="flex items-center gap-2 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-        <span className={`status-dot ${status}`} />
-        <span className="text-sm text-slate-300">{label}</span>
-      </div>
-      {!showPicker && (
-        <div className="flex gap-2 justify-end">
-          <button onClick={onClose}       className="btn-secondary">Close</button>
-          <button onClick={browseSheets}  className="btn-secondary">Browse Sheets</button>
-        </div>
-      )}
-      {showPicker && (
-        <>
-          <div className="flex flex-col gap-1.5">
-            <label className="card-label">Select a spreadsheet</label>
-            <select className="cfg-select" value={selected} onChange={e => setSelected(e.target.value)}>
-              <option value="">-- choose a sheet --</option>
-              {sheets.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
-          <div className="flex gap-2 justify-end">
-            <button onClick={onClose}   className="btn-secondary">Close</button>
-            <button onClick={saveSheet} className="btn-primary" disabled={!selected}>Save Sheet</button>
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-// ── Tab: IndMoney ─────────────────────────────────────────────────────────────
-
-function IndMoneyTab({ onClose }) {
-  const [status, setStatus]  = useState('checking')
-  const [label,  setLabel]   = useState('Checking…')
-  const [tools,  setTools]   = useState([])
-  const [url,    setUrl]     = useState('https://mcp.indmoney.com/mcp')
-  const [displayTool, setDisplayTool] = useState('')
-  const [showConn, setShowConn] = useState(false)
-  const [showDisc, setShowDisc] = useState(false)
-
-  async function load() {
-    setStatus('checking')
-    try {
-      const r = await fetch('/api/config/indmoney/status')
-      const d = await r.json()
-      if (d.url) setUrl(d.url)
-      if (d.display_tool) setDisplayTool(d.display_tool)
-      if (d.connected && d.auth_configured) {
-        setStatus('ok');  setLabel(`Connected — ${d.tools?.length ?? 0} tools`)
-        setTools(d.tools || [])
-        setShowConn(false); setShowDisc(true)
-      } else if (!d.auth_configured) {
-        setStatus('err'); setLabel('Not connected — click Connect IndMoney')
-        setShowConn(true);  setShowDisc(false)
-      } else {
-        setStatus('err'); setLabel(d.error || 'Connection failed')
-        setShowConn(true);  setShowDisc(false)
-      }
-    } catch { setStatus('err'); setLabel('Could not reach gateway') }
-  }
-
-  async function disconnect() {
-    await fetch('/api/config/indmoney/token', { method: 'DELETE' })
-    load()
-  }
-
-  async function saveSettings() {
-    await fetch('/api/config/indmoney/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, display_tool: displayTool }),
-    })
-    load()
-  }
-
-  useEffect(() => { load() }, [])
-
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-slate-400">Connect IndMoney via OAuth to see investments and net worth.</p>
-      <div className="flex items-center gap-2 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-        <span className={`status-dot ${status}`} />
-        <span className="text-sm text-slate-300">{label}</span>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label className="card-label">MCP Server URL</label>
-        <input className="cfg-input" value={url} onChange={e => setUrl(e.target.value)} />
-      </div>
-
-      {tools.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <label className="card-label">Dashboard card display tool</label>
-          <select className="cfg-select" value={displayTool} onChange={e => setDisplayTool(e.target.value)}>
-            <option value="">-- select a tool --</option>
-            {tools.map(t => <option key={t} value={t.replace('indmoney_', '')}>{t}</option>)}
-          </select>
-        </div>
-      )}
-
-      <div className="flex gap-2 justify-end flex-wrap">
-        <button onClick={onClose}       className="btn-secondary">Close</button>
-        <button onClick={load}          className="btn-secondary">Refresh</button>
-        <button onClick={saveSettings}  className="btn-secondary">Save</button>
-        {showConn && (
-          <button
-            onClick={async () => {
-              const base = await getGatewayUrl()
-              window.open(`${base}/auth/indmoney`, '_blank', 'noopener,noreferrer')
-            }}
-            className="btn-primary"
-          >
-            Connect IndMoney
-          </button>
-        )}
-        {showDisc && <button onClick={disconnect} className="btn-danger">Disconnect</button>}
-      </div>
-
-      <p className="text-xs text-slate-500">
-        Sign in with your IndMoney mobile number, OTP, and MPIN.
-        The gateway self-registers — no developer account needed.
+      <p className="text-sm text-slate-400">
+        All integrations (Google, WhatsApp, IndMoney, Stocks, Tunnel, API token) are managed in the{' '}
+        <strong className="text-slate-300">MCP Gateway Dashboard</strong>.
       </p>
+
+      {/* Connection status */}
+      <div className="flex items-center gap-2 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+        <span className={`status-dot ${status}`} />
+        <span className="text-sm text-slate-300">
+          {status === 'checking' ? 'Checking…' : status === 'ok' ? 'Gateway connected' : 'Gateway not reachable'}
+        </span>
+      </div>
+
+      {/* Gateway URL */}
+      <div className="flex flex-col gap-1.5">
+        <label className="card-label">Gateway URL</label>
+        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+          <code className="text-[12px] text-slate-300 flex-1">{gatewayUrl}</code>
+          <CopyButton text={gatewayUrl} />
+        </div>
+        <p className="text-[11px] text-slate-600">Set via <code className="text-slate-500">MCP_GATEWAY_URL</code> in <code className="text-slate-500">daily-briefing-dashboard/.env</code></p>
+      </div>
+
+      {/* Open gateway dashboard */}
+      <a
+        href={dashUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-3 p-3 rounded-xl border transition-colors no-underline"
+        style={{ background: `${MODAL_ACCENT}08`, borderColor: `${MODAL_ACCENT}30` }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MODAL_ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+          <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+        </svg>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium" style={{ color: MODAL_ACCENT }}>Open Gateway Dashboard ↗</p>
+          <p className="text-[11px] text-slate-500 truncate">{dashUrl}</p>
+        </div>
+      </a>
+
+      <p className="text-[11px] text-slate-600 leading-relaxed">
+        To set the API token, copy <code className="text-slate-500">GATEWAY_API_TOKEN</code> from the gateway
+        dashboard → API Token tab into <code className="text-slate-500">daily-briefing-dashboard/.env</code>,
+        then restart the dashboard server.
+      </p>
+
+      <div className="flex gap-2 justify-end">
+        <button onClick={checkStatus} className="btn-secondary">Refresh Status</button>
+        <button onClick={onClose}     className="btn-secondary">Close</button>
+      </div>
     </div>
   )
 }
@@ -303,30 +142,28 @@ function IndMoneyTab({ onClose }) {
 // ── Tab: AI Models ────────────────────────────────────────────────────────────
 
 const AI_PROVIDERS = [
-  { id: 'openai',    label: 'OpenAI',                   defaultModel: 'gpt-4o-mini',               needsBaseUrl: false },
-  { id: 'anthropic', label: 'Anthropic',                defaultModel: 'claude-haiku-4-5-20251001',  needsBaseUrl: false },
-  { id: 'custom',    label: 'Custom (OpenAI-compatible)', defaultModel: '',                        needsBaseUrl: true  },
+  { id: 'openai',    label: 'OpenAI',                     defaultModel: 'gpt-4o-mini',              needsBaseUrl: false },
+  { id: 'anthropic', label: 'Anthropic',                  defaultModel: 'claude-haiku-4-5-20251001', needsBaseUrl: false },
+  { id: 'custom',    label: 'Custom (OpenAI-compatible)', defaultModel: '',                          needsBaseUrl: true  },
 ]
 
 function genId() { return Math.random().toString(36).slice(2, 10) }
 
-function llmLoadModels() {
-  try { return JSON.parse(localStorage.getItem('dashboard_llm_models') || '[]') } catch { return [] }
-}
-function llmSaveModels(m) { localStorage.setItem('dashboard_llm_models', JSON.stringify(m)) }
+function llmLoadModels()   { try { return JSON.parse(localStorage.getItem('dashboard_llm_models') || '[]') } catch { return [] } }
+function llmSaveModels(m)  { localStorage.setItem('dashboard_llm_models', JSON.stringify(m)) }
 function llmLoadActiveId() { return localStorage.getItem('dashboard_llm_active_id') || '' }
 function llmSaveActiveId(id) { localStorage.setItem('dashboard_llm_active_id', id) }
 
 const EMPTY_FORM = { label: '', provider: 'openai', apiKey: '', model: 'gpt-4o-mini', baseUrl: '' }
 
 function AiTab() {
-  const [models,   setModels]   = useState(llmLoadModels)
-  const [activeId, setActiveId] = useState(llmLoadActiveId)
-  const [editing,  setEditing]  = useState(null)   // model id or 'new' or null
-  const [form,     setForm]     = useState(EMPTY_FORM)
-  const [testing,  setTesting]  = useState(false)
-  const [testMsg,  setTestMsg]  = useState(null)    // { ok, text }
-  const [dupErr,   setDupErr]   = useState(false)
+  const [models,    setModels]    = useState(llmLoadModels)
+  const [activeId,  setActiveId]  = useState(llmLoadActiveId)
+  const [editing,   setEditing]   = useState(null)
+  const [form,      setForm]      = useState(EMPTY_FORM)
+  const [testing,   setTesting]   = useState(false)
+  const [testMsg,   setTestMsg]   = useState(null)
+  const [dupErr,    setDupErr]    = useState(false)
   const [envStatus, setEnvStatus] = useState(null)
 
   useEffect(() => {
@@ -335,7 +172,7 @@ function AiTab() {
 
   function providerDef(id) { return AI_PROVIDERS.find(p => p.id === id) || AI_PROVIDERS[0] }
 
-  function startAdd() { setEditing('new'); setForm(EMPTY_FORM); setTestMsg(null); setDupErr(false) }
+  function startAdd()   { setEditing('new'); setForm(EMPTY_FORM); setTestMsg(null); setDupErr(false) }
   function startEdit(m) {
     setEditing(m.id)
     setForm({ label: m.label, provider: m.provider, apiKey: m.apiKey, model: m.model, baseUrl: m.baseUrl || '' })
@@ -392,16 +229,11 @@ function AiTab() {
         }),
       })
       const d = await r.json()
-      if (d.messages?.length) {
-        setTestMsg({ ok: true, text: `Connected — ${d.messages.length} messages received` })
-      } else {
-        setTestMsg({ ok: false, text: d.reason || 'No messages returned' })
-      }
+      if (d.messages?.length) setTestMsg({ ok: true, text: `Connected — ${d.messages.length} messages received` })
+      else setTestMsg({ ok: false, text: d.reason || 'No messages returned' })
     } catch (e) {
       setTestMsg({ ok: false, text: e.message })
-    } finally {
-      setTesting(false)
-    }
+    } finally { setTesting(false) }
   }
 
   const providerBadge = (id) => {
@@ -444,11 +276,7 @@ function AiTab() {
             value={form.baseUrl} onChange={e => setForm(f => ({ ...f, baseUrl: e.target.value }))} />
         </div>
       )}
-      {dupErr && (
-        <p className="text-xs" style={{ color: '#fb7185' }}>
-          ✗ A model with this provider and model name already exists.
-        </p>
-      )}
+      {dupErr && <p className="text-xs" style={{ color: '#fb7185' }}>✗ A model with this provider and model name already exists.</p>}
       {testMsg && !dupErr && (
         <p className="text-xs" style={{ color: testMsg.ok ? '#34d399' : '#fb7185' }}>
           {testMsg.ok ? '✓' : '✗'} {testMsg.text}
@@ -467,10 +295,10 @@ function AiTab() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-slate-400">
-        Add LLM models to generate personalised wish messages for celebrations. The active model is used; falls back to built-in templates if none is active.
+        Add LLM models to generate personalised wish messages for celebrations. The active model is used;
+        falls back to built-in templates if none is active.
       </p>
 
-      {/* Server .env status */}
       {envStatus && (
         <div className="flex items-center gap-2 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
           <span className={`status-dot ${envStatus.configured ? 'ok' : 'err'}`} />
@@ -482,7 +310,6 @@ function AiTab() {
         </div>
       )}
 
-      {/* Model list */}
       {models.length === 0 && editing !== 'new' && (
         <p className="text-sm text-slate-500 text-center py-3">No models added yet.</p>
       )}
@@ -497,7 +324,6 @@ function AiTab() {
                 borderColor: m.id === activeId ? `${MODAL_ACCENT}40` : 'rgba(255,255,255,0.08)',
               }}
             >
-              {/* Active checkmark */}
               <div className="w-4 flex-shrink-0">
                 {m.id === activeId && (
                   <svg width="14" height="14" fill={MODAL_ACCENT} viewBox="0 0 24 24">
@@ -505,7 +331,6 @@ function AiTab() {
                   </svg>
                 )}
               </div>
-
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-medium text-slate-200 truncate">{m.label}</span>
@@ -513,21 +338,16 @@ function AiTab() {
                 </div>
                 <p className="text-[11px] text-slate-500 mt-0.5 truncate">{m.model || '—'}</p>
               </div>
-
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {m.id !== activeId && (
-                  <button onClick={() => setActive(m.id)} className="btn-secondary !py-1 !px-2 !text-[11px]">
-                    Use
-                  </button>
+                  <button onClick={() => setActive(m.id)} className="btn-secondary !py-1 !px-2 !text-[11px]">Use</button>
                 )}
-                <button onClick={() => editing === m.id ? cancelEdit() : startEdit(m)}
-                  className="btn-icon !py-1 !px-2" title="Edit">
+                <button onClick={() => editing === m.id ? cancelEdit() : startEdit(m)} className="btn-icon !py-1 !px-2" title="Edit">
                   <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
                   </svg>
                 </button>
-                <button onClick={() => deleteModel(m.id)} className="btn-icon !py-1 !px-2" title="Delete"
-                  style={{ color: '#fb7185' }}>
+                <button onClick={() => deleteModel(m.id)} className="btn-icon !py-1 !px-2" title="Delete" style={{ color: '#fb7185' }}>
                   <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                   </svg>
@@ -537,7 +357,6 @@ function AiTab() {
             {editing === m.id && inlineForm}
           </div>
         ))}
-
         {editing === 'new' && inlineForm}
       </div>
 
@@ -547,10 +366,8 @@ function AiTab() {
 
       <p className="text-xs text-slate-600 leading-relaxed">
         API keys are stored in your browser only (localStorage). For a server-side fallback, set{' '}
-        <code className="text-slate-500">LLM_PROVIDER</code>,{' '}
-        <code className="text-slate-500">LLM_API_KEY</code>, and{' '}
-        <code className="text-slate-500">LLM_MODEL</code>{' '}
-        in the server <code className="text-slate-500">.env</code> file.
+        <code className="text-slate-500">LLM_PROVIDER</code>, <code className="text-slate-500">LLM_API_KEY</code>,
+        and <code className="text-slate-500">LLM_MODEL</code> in the server <code className="text-slate-500">.env</code>.
       </p>
     </div>
   )
@@ -576,13 +393,9 @@ function LayoutTab({ cardDefs, cardLayout, onLayoutChange, onClose }) {
     onClose()
   }
 
-  function reset() { setHidden(new Set()) }
-
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-slate-400">
-        Choose which cards to show. The layout is arranged automatically for the best look.
-      </p>
+      <p className="text-sm text-slate-400">Choose which cards to show. Layout is arranged automatically.</p>
       <div className="flex flex-col gap-2">
         {cardDefs.map(def => {
           const isHidden = hidden.has(def.id)
@@ -614,9 +427,9 @@ function LayoutTab({ cardDefs, cardLayout, onLayoutChange, onClose }) {
         })}
       </div>
       <div className="flex gap-2 justify-end pt-1">
-        <button onClick={reset}   className="btn-secondary">Show All</button>
-        <button onClick={onClose} className="btn-secondary">Cancel</button>
-        <button onClick={apply}   className="btn-primary">Apply</button>
+        <button onClick={() => setHidden(new Set())} className="btn-secondary">Show All</button>
+        <button onClick={onClose}                    className="btn-secondary">Cancel</button>
+        <button onClick={apply}                      className="btn-primary">Apply</button>
       </div>
     </div>
   )
@@ -648,7 +461,6 @@ export default function SettingsModal({
         style={{ background: 'rgba(9,14,30,0.92)', backdropFilter: 'blur(20px)', maxHeight: '90vh', overflowY: 'auto' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-white">Dashboard Settings</h2>
           <button onClick={onClose} className="btn-icon !p-1.5" aria-label="Close settings">
@@ -658,7 +470,6 @@ export default function SettingsModal({
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-1 flex-wrap">
           {TABS.map(t => (
             <button
@@ -671,20 +482,12 @@ export default function SettingsModal({
           ))}
         </div>
 
-        {/* Tab content */}
         <div>
           {activeTab === 'location' && <LocationTab location={location} onSave={handleSaveLocation} onClose={onClose} />}
-          {activeTab === 'google'   && <GoogleTab onClose={onClose} />}
-          {activeTab === 'stocks'   && <StocksTab onClose={onClose} />}
-          {activeTab === 'indmoney' && <IndMoneyTab onClose={onClose} />}
+          {activeTab === 'gateway'  && <GatewayTab onClose={onClose} />}
           {activeTab === 'ai'       && <AiTab />}
           {activeTab === 'layout'   && (
-            <LayoutTab
-              cardDefs={cardDefs}
-              cardLayout={cardLayout}
-              onLayoutChange={onLayoutChange}
-              onClose={onClose}
-            />
+            <LayoutTab cardDefs={cardDefs} cardLayout={cardLayout} onLayoutChange={onLayoutChange} onClose={onClose} />
           )}
         </div>
       </div>

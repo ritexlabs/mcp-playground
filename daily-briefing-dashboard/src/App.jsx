@@ -7,6 +7,7 @@ import CalendarCard          from './components/CalendarCard.jsx'
 import CelebrationsCard      from './components/CelebrationsCard.jsx'
 import StocksCard            from './components/StocksCard.jsx'
 import IndMoneyCard          from './components/IndMoneyCard.jsx'
+import WhatsAppCard          from './components/WhatsAppCard.jsx'
 import SettingsModal         from './components/SettingsModal.jsx'
 
 // ── Card catalogue ────────────────────────────────────────────────────────────
@@ -16,6 +17,7 @@ export const CARD_DEFS = [
   { id: 'calendar',     label: 'Calendar',          icon: '📅' },
   { id: 'celebrations', label: 'Celebrations',      icon: '🎉' },
   { id: 'indmoney',     label: 'Net Worth',         icon: '💰' },
+  { id: 'whatsapp',     label: 'WhatsApp',          icon: '💬' },
   { id: 'stocks',       label: 'Stock Portfolio',   icon: '📈' },
 ]
 
@@ -41,8 +43,14 @@ function computeSpans(visible) {
     trio.forEach(id => { spans[id] = 'col-span-12' })
   }
 
-  // Row 2 — IndMoney full width
-  if (has('indmoney')) spans.indmoney = 'col-span-12'
+  // Row 2 — IndMoney + WhatsApp side by side; each expands if the other is hidden
+  const pair = ['indmoney', 'whatsapp'].filter(has)
+  if (pair.length === 2) {
+    spans.indmoney  = 'col-span-12 md:col-span-6'
+    spans.whatsapp  = 'col-span-12 md:col-span-6'
+  } else {
+    pair.forEach(id => { spans[id] = 'col-span-12' })
+  }
 
   // Row 3 — Stocks full width
   if (has('stocks')) spans.stocks = 'col-span-12'
@@ -150,6 +158,9 @@ export default function App() {
                     delay={delay}
                     syncedAt={syncedAt.stocks}
                   />
+                )}
+                {id === 'whatsapp' && (
+                  <WhatsAppCard delay={delay} />
                 )}
               </div>
             )

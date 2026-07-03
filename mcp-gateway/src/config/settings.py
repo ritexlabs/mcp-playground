@@ -46,6 +46,17 @@ class Settings(BaseSettings):
     INDMONEY_CLIENT_SECRET: str | None = None
     INDMONEY_OAUTH_TOKEN: str | None = None
 
+    # ── Gateway API token ── (authenticates the daily dashboard proxy)
+    # Auto-generated on first startup if not set. Copy the printed token into
+    # daily-briefing-dashboard/.env as GATEWAY_API_TOKEN=<value>
+    GATEWAY_API_TOKEN: str | None = None
+
+    # ── WhatsApp Business Cloud API ──
+    WHATSAPP_ACCESS_TOKEN: str | None = None
+    WHATSAPP_PHONE_NUMBER_ID: str | None = None
+    WHATSAPP_VERIFY_TOKEN: str | None = None
+    WHATSAPP_WEBHOOK_DOMAIN: str | None = None
+
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_REQUESTS_PER_MINUTE: int = 60
     TOKEN_EXPIRY_WARNING_HOURS: int = 24
@@ -57,6 +68,9 @@ class Settings(BaseSettings):
 
     def is_google_configured(self) -> bool:
         return bool(self.GOOGLE_CLIENT_ID and self.GOOGLE_CLIENT_SECRET)
+
+    def is_whatsapp_configured(self) -> bool:
+        return bool(self.WHATSAPP_ACCESS_TOKEN and self.WHATSAPP_PHONE_NUMBER_ID and self.WHATSAPP_VERIFY_TOKEN)
 
     def is_indmoney_configured(self) -> bool:
         return bool(self.INDMONEY_MCP_URL)
