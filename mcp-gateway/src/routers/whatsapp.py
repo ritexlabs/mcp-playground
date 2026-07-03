@@ -102,7 +102,7 @@ async def whatsapp_webhook_verify(request: Request):
     return _verify_webhook(request)
 
 
-# Alias path: matches Meta callback URL https://whatsapp.robokingmaster.in/webhook/whatsapp
+# Alias path: matches Meta callback URL https://<WHATSAPP_WEBHOOK_DOMAIN>/webhook/whatsapp
 meta_webhook_router = APIRouter(tags=["whatsapp-webhook"])
 
 @meta_webhook_router.get("/webhook/whatsapp")
