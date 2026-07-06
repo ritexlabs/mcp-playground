@@ -1,11 +1,13 @@
 import asyncio
 import contextlib
 import logging
+import secrets as _secrets
 import time
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from mcp.server import Server
@@ -35,6 +37,11 @@ from .utils.errors import MCPError, sanitize_error
 from .auth.token_manager import token_manager
 from .utils.logger import log_auth_event, log_system_event, log_tool_access
 from .utils.rate_limiter import rate_limiter
+from .routers.api import router as api_router
+from .routers.whatsapp import router as wa_router, webhook_router as wa_webhook_router, meta_webhook_router as wa_meta_router
+from .routers.tunnel import router as tunnel_router
+
+_DASHBOARD_HTML = Path(__file__).parent.parent / "dashboard" / "index.html"
 
 # Stores {state: {"flow": ..., "created_at": float}} for TTL enforcement
 _AUTH_FLOWS: dict[str, dict] = {}
@@ -215,6 +222,17 @@ async def _dispatch(name: str, args: dict) -> str:
 
 @contextlib.asynccontextmanager
 async def lifespan(_app: FastAPI):
+    # Auto-generate gateway API token on first startup
+    if not settings.GATEWAY_API_TOKEN:
+        token = _secrets.token_urlsafe(32)
+        settings.GATEWAY_API_TOKEN = token
+        await asyncio.to_thread(update_env_setting, "GATEWAY_API_TOKEN", token)
+        print(f"\n{'='*60}")
+        print("  MCP Gateway API Token (auto-generated)")
+        print(f"  GATEWAY_API_TOKEN={token}")
+        print(f"  Add to daily-briefing-dashboard/.env")
+        print(f"{'='*60}\n")
+
     log_system_event(
         "startup",
         server=settings.MCP_SERVER_NAME,
@@ -229,6 +247,49 @@ async def lifespan(_app: FastAPI):
     log_system_event("shutdown", server=settings.MCP_SERVER_NAME)
 
 
+class _BearerAuthMiddleware:
+    """Require Bearer token for /api/* routes from non-localhost clients."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+
+        # Webhook path: Meta cannot send Bearer tokens
+        if path in ("/api/whatsapp/webhook", "/webhook/whatsapp"):
+            await self.app(scope, receive, send)
+            return
+
+        # Only protect /api/* routes
+        if not path.startswith("/api/"):
+            await self.app(scope, receive, send)
+            return
+
+        # Localhost is always exempt (gateway dashboard, server.js proxy on same machine)
+        client = scope.get("client")
+        if client:
+            host = client[0]
+            if host in ("127.0.0.1", "::1", "localhost"):
+                await self.app(scope, receive, send)
+                return
+
+        token = settings.GATEWAY_API_TOKEN
+        if token:
+            headers_dict = dict(scope.get("headers", []))
+            auth = headers_dict.get(b"authorization", b"").decode()
+            if not auth.startswith("Bearer ") or auth[7:] != token:
+                response = JSONResponse({"error": "Unauthorized"}, status_code=401)
+                await response(scope, receive, send)
+                return
+
+        await self.app(scope, receive, send)
+
+
 class _SecurityHeadersMiddleware:
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -238,6 +299,8 @@ class _SecurityHeadersMiddleware:
             await self.app(scope, receive, send)
             return
 
+        is_dashboard = scope.get("path", "") == "/dashboard"
+
         async def _send(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
@@ -245,9 +308,19 @@ class _SecurityHeadersMiddleware:
                 headers["X-Frame-Options"] = "DENY"
                 headers["X-XSS-Protection"] = "1; mode=block"
                 headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-                headers["Content-Security-Policy"] = (
-                    "default-src 'none'; frame-ancestors 'none'"
-                )
+                if is_dashboard:
+                    # Dashboard uses inline scripts/styles and fetches its own API
+                    headers["Content-Security-Policy"] = (
+                        "default-src 'self'; "
+                        "script-src 'unsafe-inline'; "
+                        "style-src 'unsafe-inline'; "
+                        "connect-src 'self'; "
+                        "frame-ancestors 'none'"
+                    )
+                else:
+                    headers["Content-Security-Policy"] = (
+                        "default-src 'none'; frame-ancestors 'none'"
+                    )
             await send(message)
 
         await self.app(scope, receive, _send)
@@ -264,9 +337,24 @@ app.add_middleware(
     allow_origins=[settings.DASHBOARD_ORIGIN],
     allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Authorization"],
 )
+app.add_middleware(_BearerAuthMiddleware)
 app.add_middleware(_SecurityHeadersMiddleware)
+
+# Include REST routers
+app.include_router(api_router)
+app.include_router(wa_router)
+app.include_router(wa_webhook_router)
+app.include_router(wa_meta_router)
+app.include_router(tunnel_router)
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def dashboard():
+    if _DASHBOARD_HTML.exists():
+        return FileResponse(_DASHBOARD_HTML, media_type="text/html")
+    return HTMLResponse("<h2>MCP Gateway Dashboard not found. Run the build step.</h2>", status_code=404)
 
 
 @app.get("/health")
@@ -591,6 +679,44 @@ async def save_sheet(spreadsheet_id: str):
     settings.MYSTOCKS_SPREADSHEET_ID = spreadsheet_id
     await asyncio.to_thread(update_env_setting, "MYSTOCKS_SPREADSHEET_ID", spreadsheet_id)
     return {"status": "saved", "spreadsheet_id": spreadsheet_id}
+
+
+@app.get("/config/stocks")
+async def stocks_config():
+    sheet_id = settings.MYSTOCKS_SPREADSHEET_ID
+    sheet_name = None
+    if sheet_id:
+        try:
+            from .services.google_client_factory import get_drive_client
+            drive = await asyncio.to_thread(get_drive_client)
+            meta = await asyncio.to_thread(
+                lambda: drive.files().get(fileId=sheet_id, fields="id,name").execute()
+            )
+            sheet_name = meta.get("name")
+        except Exception:
+            pass
+    return {
+        "spreadsheet_id": sheet_id,
+        "sheet_name": sheet_name,
+        "range": settings.MYSTOCKS_RANGE or "A:Z",
+        "configured": bool(sheet_id),
+    }
+
+
+@app.post("/config/stocks")
+async def save_stocks_config(body: dict):
+    import re as _re
+    sheet_id  = (body.get("spreadsheet_id") or "").strip()
+    range_val = (body.get("range") or "A:Z").strip()
+    if sheet_id and not _re.fullmatch(r"[A-Za-z0-9_\-]{20,60}", sheet_id):
+        raise MCPError("Invalid spreadsheet ID format", "VALIDATION_ERROR", 400)
+    if sheet_id:
+        settings.MYSTOCKS_SPREADSHEET_ID = sheet_id
+        await asyncio.to_thread(update_env_setting, "MYSTOCKS_SPREADSHEET_ID", sheet_id)
+    if range_val:
+        settings.MYSTOCKS_RANGE = range_val
+        await asyncio.to_thread(update_env_setting, "MYSTOCKS_RANGE", range_val)
+    return {"status": "saved", "spreadsheet_id": settings.MYSTOCKS_SPREADSHEET_ID, "range": settings.MYSTOCKS_RANGE}
 
 
 # ── IndMoney config endpoints ──────────────────────────────────────────────────

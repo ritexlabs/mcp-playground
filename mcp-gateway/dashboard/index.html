@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MCP Gateway Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #070a13;
+      --surface: rgba(17,24,39,0.85);
+      --border:  rgba(255,255,255,0.08);
+      --text:    #f1f5f9;
+      --muted:   #94a3b8;
+      --dim:     #475569;
+      --green:   #34d399;
+      --red:     #fb7185;
+      --amber:   #fbbf24;
+      --blue:    #60a5fa;
+      --violet:  #a78bfa;
+      --accent:  #818cf8;
+      --wa:      #25D366;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px; line-height: 1.5; min-height: 100vh;
+    }
+    body::before, body::after {
+      content: ''; position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
+    }
+    body::before {
+      width: 600px; height: 600px; top: -200px; left: -150px;
+      background: radial-gradient(circle, rgba(99,102,241,.12) 0%, transparent 70%);
+    }
+    body::after {
+      width: 500px; height: 500px; bottom: -150px; right: -100px;
+      background: radial-gradient(circle, rgba(16,185,129,.08) 0%, transparent 70%);
+    }
+
+    #root { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 24px 20px 60px; }
+
+    /* Header */
+    header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+    header .logo {
+      width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent) 0%, #6366f1 100%);
+      display: flex; align-items: center; justify-content: center;
+    }
+    header .logo svg { opacity: 0.95; }
+    header .info h1 { font-size: 1.25rem; font-weight: 700; color: var(--text); }
+    header .info p  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s ease-in-out infinite; margin-right: 6px; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+    @keyframes spin   { to { transform: rotate(360deg); } }
+
+    /* Tabs */
+    nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    nav button {
+      padding: 6px 14px; border-radius: 8px; border: none; cursor: pointer;
+      font-size: 13px; font-weight: 500; transition: all .15s;
+      background: transparent; color: var(--muted);
+    }
+    nav button:hover  { background: rgba(255,255,255,.06); color: var(--text); }
+    nav button.active { background: rgba(255,255,255,.10); color: var(--text); }
+
+    /* Cards */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px; backdrop-filter: blur(12px);
+    }
+    .card + .card { margin-top: 14px; }
+    .card-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 14px; }
+
+    /* Status grid */
+    .status-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+    .status-item {
+      display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+      background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 12px;
+      transition: background .2s, border-color .2s;
+    }
+    .status-item.s-ok   { background: rgba(52,211,153,.07);  border-color: rgba(52,211,153,.25); }
+    .status-item.s-warn { background: rgba(251,191,36,.07);  border-color: rgba(251,191,36,.25); }
+    .status-item.s-err  { background: rgba(251,113,133,.07); border-color: rgba(251,113,133,.25); }
+    .status-item .dot   { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .status-item .name  { font-size: 13px; color: var(--text); }
+    .status-item .val   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .status-item.s-ok   .val { color: var(--green); }
+    .status-item.s-warn .val { color: var(--amber); }
+    .status-item.s-err  .val { color: var(--red); }
+
+    .dot-green { background: var(--green); box-shadow: 0 0 8px rgba(52,211,153,.5); }
+    .dot-red   { background: var(--red);   box-shadow: 0 0 8px rgba(251,113,133,.4); }
+    .dot-amber { background: var(--amber); box-shadow: 0 0 8px rgba(251,191,36,.4); }
+    .dot-dim   { background: var(--dim); }
+
+    /* Forms */
+    label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+    input, select, textarea {
+      width: 100%; padding: 9px 12px; border-radius: 10px; font-size: 13px;
+      background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      color: var(--text); outline: none; transition: border-color .15s;
+      font-family: inherit;
+    }
+    input:focus, select:focus { border-color: rgba(255,255,255,.2); background: rgba(255,255,255,.07); }
+    input::placeholder { color: var(--dim); }
+    .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+    .hint { font-size: 11px; color: var(--dim); margin-top: 3px; }
+    .set-badge { font-size: 10px; color: var(--green); margin-left: 6px; }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px; border-radius: 10px; border: none; cursor: pointer;
+      font-size: 13px; font-weight: 600; transition: all .15s; white-space: nowrap;
+    }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary   { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #6366f1; }
+    .btn-secondary { background: rgba(255,255,255,.07); color: var(--muted); border: 1px solid var(--border); }
+    .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,.12); color: var(--text); }
+    .btn-danger    { background: rgba(251,113,133,.1); color: var(--red); border: 1px solid rgba(251,113,133,.2); }
+    .btn-danger:hover:not(:disabled) { background: rgba(251,113,133,.2); }
+    .btn-green     { background: rgba(37,211,102,.12); color: var(--wa); border: 1px solid rgba(37,211,102,.2); }
+    .btn-green:hover:not(:disabled) { background: rgba(37,211,102,.22); }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-top: 16px; }
+
+    /* Status row — base + state variants */
+    .status-row {
+      display: flex; align-items: center; gap: 10px; padding: 11px 16px;
+      background: rgba(255,255,255,.04); border: 1px solid var(--border);
+      border-radius: 12px; margin-bottom: 14px; transition: background .2s, border-color .2s;
+    }
+    .status-row.s-ok   { background: rgba(52,211,153,.08);  border-color: rgba(52,211,153,.3); }
+    .status-row.s-warn { background: rgba(251,191,36,.08);  border-color: rgba(251,191,36,.3); }
+    .status-row.s-err  { background: rgba(251,113,133,.08); border-color: rgba(251,113,133,.3); }
+    .status-row.s-dim  { background: rgba(71,85,105,.06);   border-color: var(--border); }
+
+    .status-label { font-size: 13px; color: var(--muted); transition: color .2s; }
+    .status-row.s-ok   .status-label { color: var(--green); }
+    .status-row.s-warn .status-label { color: var(--amber); }
+    .status-row.s-err  .status-label { color: var(--red); }
+    .status-row.s-dim  .status-label { color: var(--dim); }
+
+    /* Message */
+    .msg { font-size: 12px; padding: 2px 0; }
+    .msg-ok  { color: var(--green); }
+    .msg-err { color: var(--red); }
+
+    /* Code / token */
+    .token-box {
+      display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+      background: rgba(0,0,0,.3); border: 1px solid var(--border); border-radius: 10px;
+      font-family: monospace; font-size: 13px; color: var(--text); word-break: break-all;
+    }
+    .token-box code { flex: 1; }
+    .copy-btn {
+      padding: 4px 10px; border-radius: 7px; border: none; cursor: pointer; font-size: 11px; font-weight: 600;
+      background: rgba(255,255,255,.08); color: var(--muted); transition: all .15s; white-space: nowrap; flex-shrink: 0;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,.14); color: var(--text); }
+    .copy-btn.copied { background: rgba(52,211,153,.15); color: var(--green); }
+
+    /* Tab panels */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Spinner */
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.1); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; vertical-align: middle; margin-right: 6px; }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+
+    /* Step */
+    .step { display: flex; gap: 12px; padding: 14px; background: rgba(255,255,255,.02); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px; }
+    .step-num { width: 22px; height: 22px; border-radius: 50%; background: rgba(129,140,248,.15); color: var(--accent); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+    .step-body { flex: 1; min-width: 0; }
+    .step-title { font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .code-row { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,.25); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; margin-top: 6px; }
+    .code-row code { font-family: monospace; font-size: 11px; color: #94a3b8; flex: 1; word-break: break-all; }
+
+    /* Tunnel status */
+    .tunnel-status {
+      display: flex; align-items: center; gap: 14px; padding: 16px;
+      background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 14px;
+      transition: background .2s, border-color .2s;
+    }
+    .tunnel-status.s-ok   { background: rgba(52,211,153,.08);  border-color: rgba(52,211,153,.3); }
+    .tunnel-status.s-err  { background: rgba(251,113,133,.08); border-color: rgba(251,113,133,.3); }
+    .tunnel-status.s-dim  { background: rgba(71,85,105,.06);   border-color: var(--border); }
+    .tunnel-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .tunnel-info h3 { font-size: 15px; font-weight: 600; }
+    .tunnel-status.s-ok  .tunnel-info h3 { color: var(--green); }
+    .tunnel-status.s-err .tunnel-info h3 { color: var(--red); }
+    .tunnel-status.s-dim .tunnel-info h3 { color: var(--dim); }
+    .tunnel-info p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    /* Sheet picker list */
+    .sheet-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+      cursor: pointer; border-bottom: 1px solid var(--border); transition: background .12s;
+    }
+    .sheet-item:last-child { border-bottom: none; }
+    .sheet-item:hover { background: rgba(255,255,255,.05); }
+    .sheet-item.selected { background: rgba(52,211,153,.07); border-color: rgba(52,211,153,.2); }
+    .sheet-item svg { flex-shrink: 0; }
+    .sheet-item .s-name { font-size: 13px; color: var(--text); flex: 1; }
+    .sheet-item .s-date { font-size: 11px; color: var(--dim); }
+    .sheet-item .s-check { color: var(--green); font-size: 13px; font-weight: 700; }
+    .sheet-loading { padding: 20px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    @media (max-width: 480px) {
+      .status-grid { grid-template-columns: 1fr 1fr; }
+      #root { padding: 16px 14px 60px; }
+    }
+  </style>
+</head>
+<body>
+<div id="root">
+
+  <header>
+    <div class="logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+      </svg>
+    </div>
+    <div class="info">
+      <h1><span class="pulse"></span>MCP Gateway</h1>
+      <p>Configuration dashboard — all integrations managed here</p>
+    </div>
+  </header>
+
+  <nav id="tab-nav">
+    <button class="active" data-tab="status">Status</button>
+    <button data-tab="google">Google</button>
+    <button data-tab="stocks">Stocks</button>
+    <button data-tab="indmoney">IndMoney</button>
+    <button data-tab="whatsapp">WhatsApp</button>
+    <button data-tab="tunnel">Tunnel</button>
+    <button data-tab="token">API Token</button>
+  </nav>
+
+  <!-- STATUS TAB -->
+  <div class="tab-panel active" id="tab-status">
+    <div class="card">
+      <div class="card-title">Integration Status</div>
+      <div class="status-grid" id="status-grid">
+        <div class="status-item"><span class="dot dot-dim"></span><div><div class="name">Loading…</div></div></div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="loadStatus()">Refresh</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GOOGLE TAB -->
+  <div class="tab-panel" id="tab-google">
+    <div class="card">
+      <div class="card-title">Google OAuth</div>
+      <p style="color:var(--muted);margin-bottom:14px;font-size:13px;">Authorise access to Gmail, Calendar, Drive, and Sheets in one step.</p>
+      <div class="status-row s-dim" id="google-status-row">
+        <span class="dot dot-dim" id="google-dot"></span>
+        <span class="status-label" id="google-status-label">Checking…</span>
+      </div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="loadGoogleStatus()">Refresh</button>
+        <button class="btn btn-danger" id="btn-google-disconnect" style="display:none" onclick="googleDisconnect()">Disconnect</button>
+        <button class="btn btn-primary" id="btn-google-connect" style="display:none" onclick="googleConnect()">Connect Google</button>
+      </div>
+      <p class="hint" style="margin-top:12px">A browser tab will open — sign in and grant all permissions, then return and click Refresh.</p>
+    </div>
+  </div>
+
+  <!-- STOCKS TAB -->
+  <div class="tab-panel" id="tab-stocks">
+    <div class="card">
+      <div class="card-title">Stocks — Google Sheet</div>
+      <p style="color:var(--muted);margin-bottom:14px;font-size:13px;">Select a Google Sheet that holds your stock portfolio. Uses your existing Google connection — no extra credentials needed.</p>
+
+      <div class="status-row s-dim" id="stocks-status-row">
+        <span class="dot dot-dim" id="stocks-dot"></span>
+        <span class="status-label" id="stocks-status-label">Checking…</span>
+      </div>
+
+      <!-- Sheet picker (shown after Browse) -->
+      <div id="stocks-picker-wrap" style="display:none;margin-bottom:14px">
+        <label>Select a Google Sheet</label>
+        <div id="stocks-sheet-list" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.03)"></div>
+        <span class="hint" style="margin-top:6px;display:block">Click a sheet to select it.</span>
+      </div>
+
+      <!-- Selected sheet display -->
+      <div class="field" id="stocks-selected-wrap" style="display:none">
+        <label>Selected Sheet</label>
+        <div class="token-box" style="gap:12px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <code id="stocks-selected-name" style="color:var(--green)"></code>
+          <button class="copy-btn" onclick="clearStocksSheet()" style="color:var(--red);background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.15)">✕ Clear</button>
+        </div>
+        <span class="hint" id="stocks-selected-id" style="margin-top:4px;font-family:monospace;font-size:10px"></span>
+      </div>
+
+      <div class="field">
+        <label>Range</label>
+        <input id="stocks-range" type="text" placeholder="A:Z" value="A:Z">
+        <span class="hint">Column range to read, e.g. <code style="font-size:10px">A:Z</code> or <code style="font-size:10px">A:F</code>. Leave as A:Z to read all columns.</span>
+      </div>
+
+      <div id="stocks-msg" class="msg" style="margin-bottom:8px"></div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="loadStocksStatus()">Refresh</button>
+        <button class="btn btn-secondary" id="btn-stocks-browse" onclick="browseSheets()">Browse Sheets</button>
+        <button class="btn btn-primary" onclick="saveStocks()">Save</button>
+      </div>
+      <p class="hint" style="margin-top:12px">
+        The sheet must be accessible by the Google account you connected above.
+        Each row in the selected range is shown as a stock entry on the dashboard.
+      </p>
+    </div>
+  </div>
+
+  <!-- INDMONEY TAB -->
+  <div class="tab-panel" id="tab-indmoney">
+    <div class="card">
+      <div class="card-title">IndMoney</div>
+      <p style="color:var(--muted);margin-bottom:14px;font-size:13px;">Connect your IndMoney account to see investments and net worth.</p>
+      <div class="status-row s-dim" id="im-status-row">
+        <span class="dot dot-dim" id="im-dot"></span>
+        <span class="status-label" id="im-status-label">Checking…</span>
+      </div>
+      <div class="field">
+        <label>MCP Server URL</label>
+        <input id="im-url" type="url" placeholder="https://mcp.indmoney.com/mcp">
+      </div>
+      <div class="field" id="im-tool-wrap" style="display:none">
+        <label>Dashboard Card Display Tool</label>
+        <select id="im-tool"></select>
+        <span class="hint">The tool whose output appears on the Net Worth card.</span>
+      </div>
+      <div id="im-msg" class="msg" style="margin-bottom:8px"></div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="loadIndMoneyStatus()">Refresh</button>
+        <button class="btn btn-secondary" onclick="saveIndMoney()">Save</button>
+        <button class="btn btn-danger" id="btn-im-disconnect" style="display:none" onclick="imDisconnect()">Disconnect</button>
+        <button class="btn btn-primary" id="btn-im-connect" onclick="imConnect()">Connect IndMoney</button>
+      </div>
+      <p class="hint" style="margin-top:12px">Sign in with your IndMoney mobile number, OTP, and MPIN. No developer account needed.</p>
+    </div>
+  </div>
+
+  <!-- WHATSAPP TAB -->
+  <div class="tab-panel" id="tab-whatsapp">
+    <div class="card">
+      <div class="card-title">WhatsApp Business API</div>
+      <div class="status-row s-dim" id="wa-status-row">
+        <span class="dot dot-dim" id="wa-dot"></span>
+        <span class="status-label" id="wa-status-label">Checking…</span>
+      </div>
+
+      <div class="field" id="wa-webhook-wrap" style="display:none">
+        <label>Webhook URL</label>
+        <div class="token-box">
+          <code id="wa-webhook-url"></code>
+          <button class="copy-btn" onclick="copyText(this, document.getElementById('wa-webhook-url').textContent)">Copy</button>
+        </div>
+        <span class="hint">Paste this into Meta developer console → WhatsApp → Configuration → Webhook Callback URL.</span>
+      </div>
+
+      <div class="field">
+        <label>Access Token <span class="set-badge" id="wa-token-set" style="display:none">● set</span></label>
+        <input id="wa-access-token" type="password" placeholder="Permanent system user token from Meta">
+      </div>
+      <div class="field">
+        <label>Phone Number ID</label>
+        <input id="wa-phone-id" placeholder="e.g. 123456789012345">
+        <span class="hint">Found in Meta console → WhatsApp → API Setup → Phone Number ID.</span>
+      </div>
+      <div class="field">
+        <label>Verify Token <span class="set-badge" id="wa-verify-set" style="display:none">● set</span></label>
+        <input id="wa-verify-token" type="password" placeholder="Any secret string you choose">
+      </div>
+      <div class="field">
+        <label>Webhook Domain</label>
+        <input id="wa-domain" placeholder="webhook.yourdomain.com or abc.trycloudflare.com" oninput="updateWaPreview()">
+        <span class="hint">Your domain or Cloudflare Tunnel hostname — without https://</span>
+      </div>
+
+      <div id="wa-msg" class="msg" style="margin-bottom:8px"></div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="loadWaStatus()">Refresh</button>
+        <button class="btn btn-primary" onclick="saveWa()">Save Config</button>
+      </div>
+    </div>
+
+    <!-- ── Meta Setup Guide ── -->
+    <div class="card">
+      <div class="card-title">Meta WhatsApp Business API — Setup Guide</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:18px">
+        Follow these steps from scratch to connect your Meta WhatsApp Business account to this gateway.
+      </p>
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Create a Meta Developer Account</div>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Go to <strong>developers.facebook.com</strong> and click <em>Get Started</em></li>
+            <li>Log in with your Facebook account and complete phone verification</li>
+            <li>Accept the Meta Platform Policies when prompted</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Create a Meta App</div>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Click <strong>My Apps → Create App</strong></li>
+            <li>Use case: choose <strong>Other</strong> → Next</li>
+            <li>App type: choose <strong>Business</strong> → Next</li>
+            <li>Give your app a name (e.g. <em>My WhatsApp Gateway</em>)</li>
+            <li>Business Portfolio: select an existing one or click <em>Create a business portfolio</em></li>
+            <li>Click <strong>Create App</strong></li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Add WhatsApp to Your App</div>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>In the App Dashboard scroll to <strong>Add Products to Your App</strong></li>
+            <li>Find <strong>WhatsApp</strong> and click <em>Set Up</em></li>
+            <li>Select your Business Portfolio and click <strong>Continue</strong></li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Get Your Phone Number ID &amp; Temporary Token</div>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Left sidebar → <strong>WhatsApp → API Setup</strong></li>
+            <li>Under <em>Send and receive messages</em> you'll see a test phone number</li>
+            <li>Copy the <strong>Phone Number ID</strong> → paste into <em>Phone Number ID</em> above</li>
+            <li>Copy the <strong>Temporary access token</strong> → paste into <em>Access Token</em> above</li>
+          </ol>
+          <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:6px;padding:10px;margin-top:8px;font-size:12px;color:var(--muted)">
+            ⚠️ The temporary token expires in <strong>24 hours</strong>. Follow Step 6 to get a permanent token before going to production.
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Start the Cloudflare Tunnel</div>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Go to the <strong>Tunnel tab</strong> in this dashboard</li>
+            <li>Follow the setup guide there (named tunnel for a stable URL, or quick tunnel for testing)</li>
+            <li>Click <strong>Start Tunnel</strong> — note the webhook domain that appears</li>
+            <li>Come back here and paste it into <em>Webhook Domain</em> above, then <strong>Save Config</strong></li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <div class="step-title">Configure the Webhook in Meta</div>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Meta App Dashboard → <strong>WhatsApp → Configuration</strong></li>
+            <li>Webhook section → click <strong>Edit</strong></li>
+            <li><strong>Callback URL:</strong> paste the Webhook URL shown at the top of this tab</li>
+            <li><strong>Verify Token:</strong> paste your <em>Verify Token</em> value from above</li>
+            <li>Click <strong>Verify and Save</strong> — Meta will call your endpoint to confirm it's live</li>
+            <li>Under <em>Webhook Fields</em> → find <strong>messages</strong> → click <em>Subscribe</em></li>
+          </ol>
+          <div style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.25);border-radius:6px;padding:10px;margin-top:8px;font-size:12px;color:var(--muted)">
+            ✓ After verification, incoming WhatsApp messages will appear on your daily dashboard.
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-num">7</div>
+        <div class="step-body">
+          <div class="step-title">Get a Permanent Access Token (Production)</div>
+          <p style="font-size:12px;color:var(--muted);margin-top:4px">The temporary token expires in 24 h. For persistent access:</p>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Go to <strong>business.facebook.com → Settings → Users → System Users</strong></li>
+            <li>Click <strong>Add</strong> → name it (e.g. <em>whatsapp-gateway</em>) → Role: <em>Admin</em> → Create</li>
+            <li>Click <strong>Add Assets</strong> → Apps → select your WhatsApp app → toggle <em>Full control</em> → Save</li>
+            <li>Click <strong>Generate New Token</strong> → select your app</li>
+            <li>Enable permissions: <code>whatsapp_business_messaging</code> and <code>whatsapp_business_management</code></li>
+            <li>Click <strong>Generate Token</strong> — <em>copy it immediately</em>, it is shown only once</li>
+            <li>Paste it into <em>Access Token</em> above and click <strong>Save Config</strong></li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-num">8</div>
+        <div class="step-body">
+          <div class="step-title">Add a Real Business Phone Number (Optional)</div>
+          <p style="font-size:12px;color:var(--muted);margin-top:4px">
+            The test number lets you send to up to 5 verified numbers. To receive from anyone, add your own number:
+          </p>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Meta App Dashboard → <strong>WhatsApp → Phone Numbers → Add Phone Number</strong></li>
+            <li>Enter your number → verify via SMS or phone call</li>
+            <li>Update the <em>Phone Number ID</em> in this dashboard to the new number's ID</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-num">9</div>
+        <div class="step-body">
+          <div class="step-title">Test End-to-End</div>
+          <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <li>Send a WhatsApp message to your business phone number</li>
+            <li>Open the daily dashboard — the message appears in the WhatsApp card within seconds</li>
+            <li>If nothing appears after 30 s: check the Tunnel tab (tunnel must be running), and confirm the webhook is subscribed to <strong>messages</strong> in Meta</li>
+          </ol>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TUNNEL TAB -->
+  <div class="tab-panel" id="tab-tunnel">
+
+    <!-- ── Status & controls ── -->
+    <div class="card">
+      <div class="card-title">Cloudflare Tunnel</div>
+      <div class="tunnel-status s-dim" id="tunnel-status-box">
+        <span class="tunnel-dot dot-dim" id="tunnel-dot"></span>
+        <div class="tunnel-info">
+          <h3 id="tunnel-label">Checking…</h3>
+          <p id="tunnel-url-line" style="display:none"></p>
+        </div>
+      </div>
+      <div id="tunnel-msg" class="msg" style="margin-bottom:8px"></div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="loadTunnelStatus()">Refresh</button>
+        <button class="btn btn-danger" id="btn-tunnel-stop" style="display:none" onclick="tunnelStop()">Stop Tunnel</button>
+        <button class="btn btn-green" id="btn-tunnel-start" style="display:none" onclick="tunnelStart()">Start Tunnel</button>
+      </div>
+    </div>
+
+    <!-- ── Named-tunnel config file editor (shown only in named mode) ── -->
+    <div class="card" id="tunnel-cfg-card" style="display:none">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Tunnel Config</span>
+        <span style="font-size:11px;color:var(--muted);font-weight:400;font-family:monospace">.cloudflared/tunnel-whatsapp.yml</span>
+      </div>
+      <p class="hint" style="margin-bottom:8px">Edit below to customise ingress rules, then save. Changes take effect on the next tunnel start.</p>
+      <textarea id="tunnel-cfg-editor"
+        style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px;
+               background:var(--surface);border:1px solid var(--border);border-radius:6px;
+               color:var(--text);padding:10px;resize:vertical;min-height:140px;line-height:1.5"
+        spellcheck="false"></textarea>
+      <div id="tunnel-cfg-msg" class="msg" style="margin-top:6px"></div>
+      <div class="actions" style="margin-top:8px">
+        <button class="btn btn-secondary" onclick="saveTunnelConfig()">Save Config</button>
+      </div>
+    </div>
+
+    <!-- ── Setup Guide ── -->
+    <div class="card">
+      <div class="card-title">Setup Guide</div>
+
+      <!-- mode picker -->
+      <div style="display:flex;gap:8px;margin-bottom:18px">
+        <button id="tmode-named" class="btn btn-secondary" onclick="setTunnelGuideMode('named')"
+          style="flex:1;font-size:13px">🌐 I have a domain</button>
+        <button id="tmode-quick" class="btn btn-secondary" onclick="setTunnelGuideMode('quick')"
+          style="flex:1;font-size:13px">⚡ No domain (quick tunnel)</button>
+      </div>
+
+      <!-- ── Path A: named tunnel ── -->
+      <div id="tguide-named">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Install cloudflared</div>
+            <div class="code-row"><code>brew install cloudflare/cloudflare/cloudflared</code>
+              <button class="copy-btn" onclick="copyText(this,'brew install cloudflare/cloudflare/cloudflared')">Copy</button></div>
+            <p class="hint" style="margin-top:4px">Windows: <code>winget install Cloudflare.cloudflared</code></p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Log in to Cloudflare</div>
+            <div class="code-row"><code>cloudflared login</code>
+              <button class="copy-btn" onclick="copyText(this,'cloudflared login')">Copy</button></div>
+            <p class="hint" style="margin-top:4px">Opens a browser — authorise the domain you want to use.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Create a named tunnel</div>
+            <div class="code-row"><code>cloudflared tunnel create whatsapp</code>
+              <button class="copy-btn" onclick="copyText(this,'cloudflared tunnel create whatsapp')">Copy</button></div>
+            <p class="hint" style="margin-top:4px">Copy the tunnel ID printed — you'll need it in the next step.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Route your subdomain to the tunnel</div>
+            <div class="code-row"><code>cloudflared tunnel route dns whatsapp webhook.yourdomain.com</code>
+              <button class="copy-btn" onclick="copyText(this,'cloudflared tunnel route dns whatsapp webhook.yourdomain.com')">Copy</button></div>
+            <p class="hint" style="margin-top:4px">Replace <strong>webhook.yourdomain.com</strong> with your subdomain (must be on Cloudflare).</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <div class="step-title">Update <code>mcp-gateway/.env</code></div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:monospace;font-size:12px;line-height:1.6;margin-top:6px">
+              WHATSAPP_WEBHOOK_DOMAIN=webhook.yourdomain.com<br>
+              CLOUDFLARE_TUNNEL_NAME=&lt;tunnel-id-from-step-3&gt;
+            </div>
+            <p class="hint" style="margin-top:4px">Then restart the gateway: <code>python mcp_gateway.py restart</code></p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <div class="step-title">Optionally customise the config file</div>
+            <p style="font-size:13px;color:var(--muted);margin-top:4px">
+              The gateway auto-generates <code>.cloudflared/tunnel-whatsapp.yml</code> from your .env on first start.
+              Use the <strong>Tunnel Config</strong> card above to edit ingress rules (e.g. add multiple hostnames)
+              without touching the file on disk.
+            </p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">7</div>
+          <div class="step-body">
+            <div class="step-title">Start the tunnel &amp; register webhook in Meta</div>
+            <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+              <li>Click <strong>Start Tunnel</strong> above</li>
+              <li>Meta Developer Console → your app → WhatsApp → Configuration</li>
+              <li>Webhook → Edit → Callback URL: <code>https://webhook.yourdomain.com/webhook/whatsapp</code></li>
+              <li>Verify Token: value of <code>WHATSAPP_VERIFY_TOKEN</code> in your .env</li>
+              <li>Subscribe to <strong>messages</strong> → Verify and Save</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Path B: quick tunnel (no domain) ── -->
+      <div id="tguide-quick" style="display:none">
+        <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--muted)">
+          ⚠️ Quick tunnels get a <strong>random URL that changes every restart</strong>.
+          You must update Meta's webhook URL each time. For a stable URL, use the <em>I have a domain</em> path.
+        </div>
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Install cloudflared</div>
+            <div class="code-row"><code>brew install cloudflare/cloudflare/cloudflared</code>
+              <button class="copy-btn" onclick="copyText(this,'brew install cloudflare/cloudflare/cloudflared')">Copy</button></div>
+            <p class="hint" style="margin-top:4px">No login needed for quick tunnels.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Clear tunnel name from <code>.env</code> (use quick mode)</div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:monospace;font-size:12px;line-height:1.6;margin-top:6px">
+              WHATSAPP_WEBHOOK_DOMAIN=<br>
+              CLOUDFLARE_TUNNEL_NAME=
+            </div>
+            <p class="hint" style="margin-top:4px">Leave both blank — a random <code>*.trycloudflare.com</code> URL is assigned on start and saved automatically.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Click Start Tunnel — then copy the URL</div>
+            <p style="font-size:13px;color:var(--muted);margin-top:4px">
+              The assigned URL appears in the status box above after a few seconds.
+              It looks like <code>abc-def-123.trycloudflare.com</code>.
+            </p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Register the webhook URL in Meta</div>
+            <ol style="color:var(--muted);font-size:12px;padding-left:16px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+              <li>Meta Developer Console → your app → WhatsApp → Configuration</li>
+              <li>Webhook → Edit → Callback URL: <code>https://&lt;your-quick-url&gt;/webhook/whatsapp</code></li>
+              <li>Verify Token: value of <code>WHATSAPP_VERIFY_TOKEN</code> in your .env</li>
+              <li>Subscribe to <strong>messages</strong> → Verify and Save</li>
+              <li>⚠️ Repeat this step every time you restart the tunnel</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- API TOKEN TAB -->
+  <div class="tab-panel" id="tab-token">
+    <div class="card">
+      <div class="card-title">Gateway API Token</div>
+      <p style="color:var(--muted);margin-bottom:16px;font-size:13px;">
+        This token authenticates the daily briefing dashboard with the gateway.
+        Copy the <code style="background:rgba(255,255,255,.07);padding:1px 5px;border-radius:4px;font-size:12px">GATEWAY_API_TOKEN</code> line into
+        <code style="background:rgba(255,255,255,.07);padding:1px 5px;border-radius:4px;font-size:12px">daily-briefing-dashboard/.env</code>.
+      </p>
+
+      <div class="field">
+        <label>Token</label>
+        <div class="token-box">
+          <code id="token-display">—</code>
+          <button class="copy-btn" id="btn-copy-token" onclick="copyToken()">Copy</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>.env line — copy this into daily-briefing-dashboard/.env</label>
+        <div class="token-box">
+          <code id="token-env-line">GATEWAY_API_TOKEN=</code>
+          <button class="copy-btn" onclick="copyText(this, document.getElementById('token-env-line').textContent)">Copy</button>
+        </div>
+      </div>
+
+      <div id="token-msg" class="msg" style="margin-bottom:8px"></div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="loadToken()">Refresh</button>
+        <button class="btn btn-danger" onclick="rotateToken()">Rotate Token</button>
+      </div>
+      <p class="hint" style="margin-top:12px">
+        After rotating, update <code>GATEWAY_API_TOKEN</code> in <code>daily-briefing-dashboard/.env</code> and restart the dashboard server.
+      </p>
+    </div>
+  </div>
+
+</div><!-- /root -->
+
+<script>
+// ── Tab switching ─────────────────────────────────────────────────────────────
+document.getElementById('tab-nav').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  document.querySelectorAll('#tab-nav button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+});
+
+// ── API helper ────────────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  try {
+    const r = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', ...(opts.headers||{}) } });
+    return await r.json();
+  } catch(e) {
+    return { error: e.message };
+  }
+}
+
+// ── Status helpers ─────────────────────────────────────────────────────────────
+// state: 'ok' | 'warn' | 'err' | 'dim'
+const STATE = {
+  ok:   { dot: 'dot-green', row: 's-ok',   icon: '✓' },
+  warn: { dot: 'dot-amber', row: 's-warn', icon: '⚠' },
+  err:  { dot: 'dot-red',   row: 's-err',  icon: '✗' },
+  dim:  { dot: 'dot-dim',   row: 's-dim',  icon: '○' },
+};
+
+function applyStatus(dotId, labelId, rowId, state, text) {
+  const s = STATE[state] || STATE.dim;
+  if (dotId)  document.getElementById(dotId).className  = 'dot ' + s.dot;
+  if (labelId) document.getElementById(labelId).textContent = s.icon + '  ' + text;
+  if (rowId) {
+    const row = document.getElementById(rowId);
+    row.className = row.className.replace(/\bs-\w+/g, '').trim() + ' ' + s.row;
+  }
+}
+
+function applyTunnelStatus(state) {
+  const s = STATE[state] || STATE.dim;
+  document.getElementById('tunnel-dot').className = 'tunnel-dot ' + s.dot;
+  const box = document.getElementById('tunnel-status-box');
+  box.className = box.className.replace(/\bs-\w+/g, '').trim() + ' ' + s.row;
+}
+
+function copyText(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1800);
+  }).catch(() => {});
+}
+
+// ── Status tab ────────────────────────────────────────────────────────────────
+async function loadStatus() {
+  const grid = document.getElementById('status-grid');
+  grid.innerHTML = '<div class="status-item"><span class="dot dot-dim"></span><div><div class="name">Loading…</div></div></div>';
+
+  const [gw, gs, wa, tn, st] = await Promise.all([
+    api('/api/status'),
+    api('/auth/status'),
+    api('/api/whatsapp/status'),
+    api('/api/tunnel/status'),
+    api('/config/stocks'),
+  ]);
+
+  const items = [
+    { name: 'Gateway',  val: 'Online',
+      state: 'ok' },
+    { name: 'Google',   val: gs.authenticated ? 'Connected' : 'Not connected',
+      state: gs.authenticated ? 'ok' : 'err' },
+    { name: 'Stocks',   val: st.configured ? (st.sheet_name || 'Sheet set') : 'No sheet',
+      state: st.configured ? 'ok' : 'warn' },
+    { name: 'IndMoney', val: gw.indmoney_configured ? 'Connected' : 'Not configured',
+      state: gw.indmoney_configured ? 'ok' : 'warn' },
+    { name: 'WhatsApp', val: wa.configured ? 'Configured' : 'Not configured',
+      state: wa.configured ? 'ok' : 'warn' },
+    { name: 'Tunnel',   val: tn.running ? 'Running' : 'Stopped',
+      state: tn.running ? 'ok' : 'dim' },
+  ];
+
+  grid.innerHTML = items.map(i => {
+    const s = STATE[i.state] || STATE.dim;
+    return `<div class="status-item ${i.state === 'dim' ? '' : 's-' + i.state}">
+      <span class="dot ${s.dot}"></span>
+      <div><div class="name">${i.name}</div><div class="val">${i.val}</div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── Google tab ────────────────────────────────────────────────────────────────
+async function loadGoogleStatus() {
+  applyStatus('google-dot', 'google-status-label', 'google-status-row', 'dim', 'Checking…');
+  const d = await api('/auth/status');
+  const ok = d.authenticated;
+  const text = ok
+    ? `Connected${d.spreadsheet_name ? ' · Sheet: ' + d.spreadsheet_name : ''}`
+    : (d.google_configured ? 'Not connected — click Connect Google' : 'Google credentials not configured in .env');
+  applyStatus('google-dot', 'google-status-label', 'google-status-row', ok ? 'ok' : 'err', text);
+  document.getElementById('btn-google-connect').style.display    = ok ? 'none' : 'inline-block';
+  document.getElementById('btn-google-disconnect').style.display = ok ? 'inline-block' : 'none';
+}
+
+async function googleConnect() {
+  const d = await api('/api/config/gateway-url');
+  window.open((d.url || 'http://localhost:8000') + '/auth/google', '_blank', 'noopener,noreferrer,width=600,height=700');
+}
+async function googleDisconnect() {
+  if (!confirm('Disconnect Google? You will need to re-authenticate to use Gmail, Calendar, and Sheets.')) return;
+  await api('/auth/token', { method: 'DELETE' });
+  loadGoogleStatus();
+}
+
+// ── Stocks tab ────────────────────────────────────────────────────────────────
+let _selectedSheetId   = null;
+let _selectedSheetName = null;
+
+async function loadStocksStatus() {
+  applyStatus('stocks-dot', 'stocks-status-label', 'stocks-status-row', 'dim', 'Checking…');
+  const d = await api('/config/stocks');
+  if (d.configured) {
+    const label = d.sheet_name ? `Connected — ${d.sheet_name}` : `Configured — ${d.spreadsheet_id}`;
+    applyStatus('stocks-dot', 'stocks-status-label', 'stocks-status-row', 'ok', label);
+    _selectedSheetId   = d.spreadsheet_id;
+    _selectedSheetName = d.sheet_name || d.spreadsheet_id;
+    showSelectedSheet();
+  } else {
+    applyStatus('stocks-dot', 'stocks-status-label', 'stocks-status-row', 'warn', 'No sheet selected — click Browse Sheets');
+    _selectedSheetId   = null;
+    _selectedSheetName = null;
+    document.getElementById('stocks-selected-wrap').style.display = 'none';
+  }
+  if (d.range) document.getElementById('stocks-range').value = d.range;
+}
+
+function showSelectedSheet() {
+  const wrap = document.getElementById('stocks-selected-wrap');
+  if (_selectedSheetId) {
+    wrap.style.display = 'flex';
+    document.getElementById('stocks-selected-name').textContent = _selectedSheetName || _selectedSheetId;
+    document.getElementById('stocks-selected-id').textContent   = _selectedSheetId;
+    // Highlight in picker list if visible
+    document.querySelectorAll('.sheet-item').forEach(el => {
+      el.classList.toggle('selected', el.dataset.id === _selectedSheetId);
+      const chk = el.querySelector('.s-check');
+      if (chk) chk.style.display = el.dataset.id === _selectedSheetId ? 'block' : 'none';
+    });
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+function clearStocksSheet() {
+  _selectedSheetId   = null;
+  _selectedSheetName = null;
+  document.getElementById('stocks-selected-wrap').style.display = 'none';
+  document.querySelectorAll('.sheet-item').forEach(el => {
+    el.classList.remove('selected');
+    const chk = el.querySelector('.s-check');
+    if (chk) chk.style.display = 'none';
+  });
+  applyStatus('stocks-dot', 'stocks-status-label', 'stocks-status-row', 'warn', 'No sheet selected — click Browse Sheets');
+}
+
+async function browseSheets() {
+  const btn  = document.getElementById('btn-stocks-browse');
+  const list = document.getElementById('stocks-sheet-list');
+  const wrap = document.getElementById('stocks-picker-wrap');
+  btn.disabled = true;
+  btn.textContent = 'Loading…';
+  wrap.style.display = 'block';
+  list.innerHTML = '<div class="sheet-loading"><span class="spinner"></span> Fetching your Google Sheets…</div>';
+
+  const sheets = await api('/config/sheets');
+  btn.disabled = false;
+  btn.textContent = 'Browse Sheets';
+
+  if (!Array.isArray(sheets) || sheets.length === 0) {
+    list.innerHTML = '<div class="sheet-loading" style="color:var(--amber)">⚠ No Google Sheets found. Make sure Google is connected and you have sheets in Drive.</div>';
+    return;
+  }
+
+  list.innerHTML = sheets.map(s => {
+    const date    = s.modifiedTime ? new Date(s.modifiedTime).toLocaleDateString() : '';
+    const checked = s.id === _selectedSheetId;
+    return `<div class="sheet-item${checked ? ' selected' : ''}" data-id="${s.id}" data-name="${s.name.replace(/"/g,'&quot;')}" onclick="selectSheet(this)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+      <span class="s-name">${s.name}</span>
+      <span class="s-date">${date}</span>
+      <span class="s-check" style="display:${checked ? 'block' : 'none'}">✓</span>
+    </div>`;
+  }).join('');
+}
+
+function selectSheet(el) {
+  _selectedSheetId   = el.dataset.id;
+  _selectedSheetName = el.dataset.name;
+  showSelectedSheet();
+  applyStatus('stocks-dot', 'stocks-status-label', 'stocks-status-row', 'ok', `Selected — ${_selectedSheetName}`);
+}
+
+async function saveStocks() {
+  const msg = document.getElementById('stocks-msg');
+  if (!_selectedSheetId) {
+    msg.textContent = '⚠ Select a sheet first using Browse Sheets';
+    msg.className   = 'msg msg-err';
+    return;
+  }
+  msg.textContent = 'Saving…'; msg.className = 'msg';
+  const d = await api('/config/stocks', {
+    method: 'POST',
+    body: JSON.stringify({
+      spreadsheet_id: _selectedSheetId,
+      range: document.getElementById('stocks-range').value.trim() || 'A:Z',
+    }),
+  });
+  if (d.status === 'saved') {
+    msg.textContent = `✓ Saved — ${_selectedSheetName}`;
+    msg.className   = 'msg msg-ok';
+    loadStocksStatus();
+  } else {
+    msg.textContent = '✗ ' + (d.error || d.detail || 'Save failed');
+    msg.className   = 'msg msg-err';
+  }
+}
+
+// ── IndMoney tab ──────────────────────────────────────────────────────────────
+async function loadIndMoneyStatus() {
+  applyStatus('im-dot', 'im-status-label', 'im-status-row', 'dim', 'Checking…');
+  const d = await api('/config/indmoney/status');
+  const ok = d.connected && d.auth_configured;
+  const text = ok
+    ? `Connected — ${(d.tools||[]).length} tools`
+    : (d.error || 'Not connected');
+  applyStatus('im-dot', 'im-status-label', 'im-status-row', ok ? 'ok' : 'warn', text);
+  if (d.url) document.getElementById('im-url').value = d.url;
+  if (d.display_tool) document.getElementById('im-tool').value = d.display_tool;
+  document.getElementById('btn-im-connect').style.display    = ok ? 'none' : 'inline-block';
+  document.getElementById('btn-im-disconnect').style.display = ok ? 'inline-block' : 'none';
+  const toolWrap = document.getElementById('im-tool-wrap');
+  if (ok && d.tools && d.tools.length) {
+    toolWrap.style.display = 'flex';
+    const sel = document.getElementById('im-tool');
+    sel.innerHTML = '<option value="">-- select a tool --</option>' +
+      d.tools.map(t => `<option value="${t.replace('indmoney_','')}"${d.display_tool===t.replace('indmoney_','')?' selected':''}>${t}</option>`).join('');
+  } else { toolWrap.style.display = 'none'; }
+}
+
+async function saveIndMoney() {
+  const msg = document.getElementById('im-msg');
+  msg.textContent = 'Saving…'; msg.className = 'msg';
+  const d = await api('/config/indmoney/save', {
+    method: 'POST',
+    body: JSON.stringify({ url: document.getElementById('im-url').value, display_tool: document.getElementById('im-tool').value }),
+  });
+  msg.textContent = d.connected ? '✓ Saved' : (d.error || 'Saved (connection pending)');
+  msg.className = 'msg ' + (d.connected ? 'msg-ok' : 'msg-err');
+  loadIndMoneyStatus();
+}
+
+async function imConnect() {
+  const d = await api('/api/config/gateway-url');
+  window.open((d.url || 'http://localhost:8000') + '/auth/indmoney', '_blank', 'noopener,noreferrer,width=600,height=700');
+}
+async function imDisconnect() {
+  if (!confirm('Disconnect IndMoney?')) return;
+  await api('/auth/indmoney/token', { method: 'DELETE' });
+  loadIndMoneyStatus();
+}
+
+// ── WhatsApp tab ──────────────────────────────────────────────────────────────
+async function loadWaStatus() {
+  applyStatus('wa-dot', 'wa-status-label', 'wa-status-row', 'dim', 'Checking…');
+  const d = await api('/api/whatsapp/status');
+  const text = d.configured
+    ? 'Configured — receiving messages'
+    : 'Not configured — fill in the credentials below';
+  applyStatus('wa-dot', 'wa-status-label', 'wa-status-row', d.configured ? 'ok' : 'warn', text);
+  document.getElementById('wa-token-set').style.display  = d.hasAccessToken ? 'inline' : 'none';
+  document.getElementById('wa-verify-set').style.display = d.hasVerifyToken  ? 'inline' : 'none';
+  if (d.phoneNumberId) document.getElementById('wa-phone-id').value = d.phoneNumberId;
+  if (d.webhookDomain) document.getElementById('wa-domain').value   = d.webhookDomain;
+  updateWaPreview(d.webhookUrl);
+}
+
+function updateWaPreview(presetUrl) {
+  const domain = (document.getElementById('wa-domain').value || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const url    = domain ? `https://${domain}/api/whatsapp/webhook` : (presetUrl || null);
+  const wrap   = document.getElementById('wa-webhook-wrap');
+  if (url) {
+    wrap.style.display = 'flex';
+    document.getElementById('wa-webhook-url').textContent = url;
+  } else { wrap.style.display = 'none'; }
+}
+
+async function saveWa() {
+  const msg = document.getElementById('wa-msg');
+  msg.textContent = 'Saving…'; msg.className = 'msg';
+  const body = {};
+  const at = document.getElementById('wa-access-token').value.trim();
+  const pi = document.getElementById('wa-phone-id').value.trim();
+  const vt = document.getElementById('wa-verify-token').value.trim();
+  const dm = document.getElementById('wa-domain').value.trim();
+  if (at) body.accessToken   = at;
+  if (pi) body.phoneNumberId = pi;
+  if (vt) body.verifyToken   = vt;
+  body.webhookDomain = dm;
+  const d = await api('/api/whatsapp/config', { method: 'POST', body: JSON.stringify(body) });
+  if (d.ok) {
+    msg.textContent = '✓ Saved — config updated in .env';
+    msg.className   = 'msg msg-ok';
+    document.getElementById('wa-access-token').value = '';
+    document.getElementById('wa-verify-token').value = '';
+    loadWaStatus();
+  } else {
+    msg.textContent = '✗ ' + (d.error || 'Save failed');
+    msg.className   = 'msg msg-err';
+  }
+}
+
+// ── Tunnel tab ────────────────────────────────────────────────────────────────
+function setTunnelGuideMode(mode) {
+  document.getElementById('tguide-named').style.display = mode === 'named' ? '' : 'none';
+  document.getElementById('tguide-quick').style.display = mode === 'quick' ? '' : 'none';
+  document.getElementById('tmode-named').style.fontWeight = mode === 'named' ? '700' : '';
+  document.getElementById('tmode-quick').style.fontWeight = mode === 'quick' ? '700' : '';
+}
+
+async function saveTunnelConfig() {
+  const msg  = document.getElementById('tunnel-cfg-msg');
+  const body = document.getElementById('tunnel-cfg-editor').value.trim();
+  if (!body) { msg.textContent = 'Config is empty.'; msg.className = 'msg msg-err'; return; }
+  const d = await api('/api/tunnel/config', { method: 'POST', body: JSON.stringify({ content: body }) });
+  if (d.ok) { msg.textContent = '✓ Config saved — takes effect on next Start Tunnel'; msg.className = 'msg msg-ok'; }
+  else       { msg.textContent = d.detail || 'Save failed'; msg.className = 'msg msg-err'; }
+}
+
+async function loadTunnelStatus() {
+  const d = await api('/api/tunnel/status');
+  applyTunnelStatus(d.running ? 'ok' : 'dim');
+  document.getElementById('tunnel-label').textContent = d.running ? 'Tunnel Running' : 'Tunnel Stopped';
+
+  // Show / populate config card for named tunnel mode
+  const cfgCard = document.getElementById('tunnel-cfg-card');
+  if (d.mode === 'named') {
+    cfgCard.style.display = '';
+    const cfg = await api('/api/tunnel/config');
+    document.getElementById('tunnel-cfg-editor').value = cfg.content || '';
+  } else {
+    cfgCard.style.display = 'none';
+  }
+
+  // Auto-select the matching guide path
+  setTunnelGuideMode(d.mode === 'quick' ? 'quick' : 'named');
+
+  const urlLine = document.getElementById('tunnel-url-line');
+if (d.running && d.domain) {
+    urlLine.style.display = 'block';
+    urlLine.innerHTML = `<a href="https://${d.domain}" target="_blank" style="color:var(--accent);text-decoration:none">https://${d.domain}</a>`;
+  } else { urlLine.style.display = 'none'; }
+  document.getElementById('btn-tunnel-start').style.display = d.running ? 'none' : 'inline-block';
+  document.getElementById('btn-tunnel-stop').style.display  = d.running ? 'inline-block' : 'none';
+}
+
+async function tunnelStart() {
+  const msg = document.getElementById('tunnel-msg');
+  msg.textContent = '⟳ Starting tunnel…'; msg.className = 'msg';
+  document.getElementById('btn-tunnel-start').disabled = true;
+  const d = await api('/api/tunnel/start', { method: 'POST' });
+  if (d.ok) {
+    msg.textContent = '✓ Tunnel starting — URL will appear in a few seconds';
+    msg.className   = 'msg msg-ok';
+    setTimeout(loadTunnelStatus, 4000);
+  } else {
+    msg.textContent = '✗ ' + (d.error || d.detail || 'Start failed');
+    msg.className   = 'msg msg-err';
+    document.getElementById('btn-tunnel-start').disabled = false;
+  }
+}
+
+async function tunnelStop() {
+  if (!confirm('Stop the Cloudflare Tunnel? New WhatsApp messages will not be received until you restart it.')) return;
+  await api('/api/tunnel/stop', { method: 'POST' });
+  setTimeout(loadTunnelStatus, 500);
+}
+
+// ── API Token tab ─────────────────────────────────────────────────────────────
+async function loadToken() {
+  const d = await api('/api/gateway/token');
+  document.getElementById('token-display').textContent  = d.token || '(not set)';
+  document.getElementById('token-env-line').textContent = d.envLine || 'GATEWAY_API_TOKEN=';
+}
+
+function copyToken() {
+  copyText(document.getElementById('btn-copy-token'), document.getElementById('token-display').textContent);
+}
+
+async function rotateToken() {
+  if (!confirm('Rotate the API token? You must update GATEWAY_API_TOKEN in daily-briefing-dashboard/.env afterwards.')) return;
+  const msg = document.getElementById('token-msg');
+  msg.textContent = 'Rotating…'; msg.className = 'msg';
+  const d = await api('/api/gateway/token/rotate', { method: 'POST' });
+  if (d.token) {
+    document.getElementById('token-display').textContent  = d.token;
+    document.getElementById('token-env-line').textContent = d.envLine;
+    msg.textContent = '✓ Token rotated — update daily-briefing-dashboard/.env now';
+    msg.className   = 'msg msg-ok';
+  } else {
+    msg.textContent = '✗ Rotation failed'; msg.className = 'msg msg-err';
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async function init() {
+  await Promise.all([
+    loadStatus(),
+    loadGoogleStatus(),
+    loadStocksStatus(),
+    loadIndMoneyStatus(),
+    loadWaStatus(),
+    loadTunnelStatus(),
+    loadToken(),
+  ]);
+})();
+</script>
+</body>
+</html>
