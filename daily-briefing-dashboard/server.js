@@ -23,10 +23,27 @@ app.use(express.json());
 const DIST_DIR   = path.join(__dirname, "dist");
 const PUBLIC_DIR = path.join(__dirname, "public");
 
-// Auto-build the React app if dist/ is missing so the server always serves
-// the latest UI without requiring a manual "npm run build" step after a fresh clone.
-if (!fs.existsSync(path.join(DIST_DIR, "index.html"))) {
-  console.log("[server] dist/ not found — running npm run build...");
+function _srcNewerThanDist() {
+  const distIndex = path.join(DIST_DIR, "index.html");
+  if (!fs.existsSync(distIndex)) return true;
+  const distMtime = fs.statSync(distIndex).mtimeMs;
+  function _walk(dir) {
+    try {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) { if (_walk(full)) return true; }
+        else if (fs.statSync(full).mtimeMs > distMtime) return true;
+      }
+    } catch { /* ignore */ }
+    return false;
+  }
+  return _walk(path.join(__dirname, "src"));
+}
+
+// Build (or rebuild) the React app when dist/ is absent or src/ has changed since
+// the last build — covers both fresh clones and git pulls with updated source.
+if (_srcNewerThanDist()) {
+  console.log("[server] src/ changed or dist/ missing — running npm run build...");
   try {
     execSync("npm run build", { cwd: __dirname, stdio: "inherit" });
     console.log("[server] build complete.");

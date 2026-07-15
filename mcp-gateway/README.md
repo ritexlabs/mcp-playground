@@ -46,8 +46,7 @@ mcp-gateway/
 ├── .env                               # Your credentials (git-ignored, chmod 600)
 ├── .env.example                       # Template — start here
 ├── requirements.txt                   # Python dependencies
-├── setup.sh                           # First-run helper
-├── start.sh                           # Start the gateway in the background
+├── mcp_gateway.py                     # Gateway manager: setup / start / stop / status / restart
 └── INTEGRATION.md                     # Step-by-step guides for Claude Desktop, Cursor, VS Code, ADK
 ```
 
@@ -58,9 +57,8 @@ mcp-gateway/
 ### 1 — First run
 
 ```bash
-cd mcp-gateway
-bash setup.sh
-# Creates .venv, installs deps, creates .env from .env.example
+python mcp-gateway/mcp_gateway.py setup
+# Creates .venv, installs deps, copies .env.example → .env
 ```
 
 ### 2 — Add credentials
@@ -88,13 +86,13 @@ A browser window opens. Sign in, tick **all** permission checkboxes, and click *
 ### 4 — Start
 
 ```bash
-./start.sh
+python mcp-gateway/mcp_gateway.py start
 # ✅ Gateway is up (PID 12345)
 #    Health: http://127.0.0.1:8000/health
 #    SSE:    http://127.0.0.1:8000/sse
 ```
 
-Or run directly:
+Or run directly from the gateway directory:
 ```bash
 .venv/bin/uvicorn src.main:app --host 127.0.0.1 --port 8000
 ```
@@ -281,11 +279,11 @@ echo "<package>>=x.y" >> requirements.txt
 
 | Symptom | Fix |
 |---|---|
-| `ModuleNotFoundError` | Run `bash setup.sh` to create `.venv` and install deps |
-| `.env not found` | Copy `.env.example` to `.env` and fill in credentials |
-| `GOOGLE_CLIENT_ID is not set` | Edit `.env` with your Google Cloud OAuth credentials |
+| `ModuleNotFoundError` | Run `python mcp-gateway/mcp_gateway.py setup` to create `.venv` and install deps |
+| `.env not found` | Run `python mcp-gateway/mcp_gateway.py setup` — it copies `.env.example` → `.env` |
+| `GOOGLE_CLIENT_ID is not set` | Edit `mcp-gateway/.env` with your Google Cloud OAuth credentials |
 | `invalid_grant` on token refresh | Revoke at [myaccount.google.com/permissions](https://myaccount.google.com/permissions) and re-run `auth_all.py` |
-| Gateway not reachable | Check `./start.sh` output and `logs/gateway.log` |
+| Gateway not reachable | Check `mcp-gateway/logs/gateway.log` |
 | WhatsApp replies accepted by Meta but never arrive on phone (error `131047`) | `WHATSAPP_PHONE_NUMBER_ID` is set to the **test number's** ID — use the registered number's ID instead (see Configuration Reference above) |
 
 **Clear keychain token and re-authenticate:**
@@ -296,5 +294,5 @@ python3 -c "from src.config.secrets import clear_oauth_token; clear_oauth_token(
 
 **Reset everything:**
 ```bash
-rm -rf .venv && bash setup.sh
+rm -rf mcp-gateway/.venv && python mcp-gateway/mcp_gateway.py setup
 ```
