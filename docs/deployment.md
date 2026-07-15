@@ -135,6 +135,20 @@ Open **Settings → Location** and fill in **Your Name**. This personalises the 
 
 Open **Settings → Gmail** and add any sender addresses or domains to exclude from the Gmail card.
 
+### Configure system metric permissions (optional)
+
+Three metrics are **disabled by default** because they may trigger admin/sudo prompts on corporate or locked-down machines:
+
+| Metric | Why disabled by default |
+|--------|------------------------|
+| CPU Temperature | Requires `osx-cpu-temp` (brew) on macOS or kernel sensor access |
+| Disk I/O Rates | May need elevated permissions on Windows |
+| Top Processes | May trigger UAC/sudo for system-level process access |
+
+To enable them, open the **MCP Gateway Dashboard** (`http://127.0.0.1:8000/dashboard`) → **System tab** → scroll to **Metric Permissions** → toggle the metrics on → **Save**.
+
+The setting persists in `mcp-gateway/.env` as `SYSTEM_DISABLED_METRICS` and takes effect on the next System card poll.
+
 ### Connect IndMoney (optional)
 
 1. Open the dashboard and click **Settings → IndMoney → Connect IndMoney**.

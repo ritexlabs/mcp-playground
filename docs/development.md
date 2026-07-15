@@ -109,7 +109,7 @@ node server.js
 
 Open [http://localhost:8080](http://localhost:8080).
 
-### Settings Dialog
+### Settings Dialog (Daily Dashboard)
 
 | Tab | What it does |
 |-----|-------------|
@@ -121,6 +121,20 @@ Open [http://localhost:8080](http://localhost:8080).
 | **AI** | Add LLM models for AI wish generation; set the active model |
 | **WhatsApp** | WhatsApp integration settings |
 | **Layout** | Show/hide dashboard cards; layout adjusts automatically |
+
+### MCP Gateway Dashboard (`http://127.0.0.1:8000/dashboard`)
+
+| Tab | What it does |
+|-----|-------------|
+| **Status** | Live service health for Google, WhatsApp, IndMoney, Tunnel |
+| **Google** | Connect / disconnect Google OAuth |
+| **Stocks** | Browse and select the Google Sheets portfolio spreadsheet |
+| **IndMoney** | Connect IndMoney; pick the display tool |
+| **WhatsApp** | Configure WhatsApp Business Cloud API credentials and webhook |
+| **Gmail** | Manage the server-side blocked-senders list |
+| **System** | View live host metrics (CPU / RAM / Disk / Temperature); configure **Metric Permissions** — enable or disable metrics that may require elevated access (`temperature`, `disk_io`, `top_processes` are off by default) |
+| **Tunnel** | Start/stop Cloudflare Tunnel; view the public webhook URL |
+| **API Token** | View and rotate the `GATEWAY_API_TOKEN` used by the daily dashboard |
 
 ---
 

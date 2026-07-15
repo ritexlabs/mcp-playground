@@ -215,6 +215,7 @@ Returns today's birthday and anniversary calendar events.
 ### `GET /api/system`
 
 Returns live system metrics sampled from `psutil`. Polled by SystemCard every 3 seconds.
+Metrics in `SYSTEM_DISABLED_METRICS` are skipped and return `null` / `{}` / `[]`.
 
 **Response**
 ```json
@@ -272,14 +273,42 @@ Returns live system metrics sampled from `psutil`. Polled by SystemCard every 3 
 ```
 
 **Notes:**
-- `temperature`: `null` if unavailable on this OS/hardware.
+- `temperature`: `null` if disabled or unavailable on this OS/hardware. Disabled by default — requires `osx-cpu-temp` on macOS.
+- `disk_io`: `{}` if disabled. Disabled by default — may need elevated permissions on Windows.
+- `top_processes`: `[]` if disabled. Disabled by default — may trigger UAC/sudo on some systems.
 - `network.send_bps` / `recv_bps`: `null` on the first poll (no previous sample to diff against).
-- `disk_io.read_bps` / `write_bps`: same — `null` on first poll, `0` or more thereafter.
+- `disk_io.read_bps` / `write_bps`: `null` on first poll, `0` or more thereafter.
 - `battery`: `null` on desktops / systems without a battery.
 - `cpu_freq`: `null` on Apple Silicon M-series (not exposed via psutil on arm64 macOS).
 - `swap`: `null` when system swap total is 0 (common on Apple Silicon).
 - `load_avg`: approximated on Windows via psutil's rolling CPU average (psutil ≥ 5.6.2).
 - `top_processes[].cpu`: `0` on the first poll; real values from the second poll onward (psutil `interval=None` behaviour).
+
+---
+
+### `GET /api/system/config`
+
+Returns which metrics are currently disabled.
+
+**Response**
+```json
+{ "disabled": ["temperature", "disk_io", "top_processes"] }
+```
+
+### `POST /api/system/config`
+
+Updates the disabled metrics list and persists it to `mcp-gateway/.env` as `SYSTEM_DISABLED_METRICS`.
+
+**Body**
+```json
+{ "disabled": ["temperature"] }
+```
+
+**Valid metric names:** `temperature`, `disk_io`, `top_processes`, `battery`, `load_avg`, `cpu_freq`, `swap`
+
+**Response** `{ "ok": true, "disabled": ["temperature"] }`
+
+> Configured via **MCP Gateway Dashboard → System tab → Metric Permissions**. Not exposed through the daily dashboard proxy.
 
 ---
 

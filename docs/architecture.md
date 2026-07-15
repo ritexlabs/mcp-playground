@@ -458,6 +458,7 @@ App.jsx
 | Local-only | Gateway binds to `127.0.0.1` — not reachable from the network by default |
 | User name | Stored in `localStorage` only — never sent to the gateway |
 | Gmail blocklist | Stored in `GMAIL_BLOCKED_SENDERS` in gateway `.env`; applied server-side before returning results |
+| System metric permissions | Stored in `SYSTEM_DISABLED_METRICS` in gateway `.env`; skipped in `fetch_system_stats()` before collection — avoids admin/sudo prompts on locked-down machines |
 
 ---
 
@@ -491,6 +492,7 @@ Rate limiting, logging, and error handling are applied automatically.
 | `MYSTOCKS_SPREADSHEET_ID` | For stocks | Google Sheet ID used by `get_stocks` tool |
 | `MYSTOCKS_RANGE` | No | Sheet range (default: `A:Z`) |
 | `GMAIL_BLOCKED_SENDERS` | No | Comma-separated list of sender addresses/domains to hide from Gmail results |
+| `SYSTEM_DISABLED_METRICS` | No | Comma-separated metrics to skip (default: `temperature,disk_io,top_processes`). Configure via Gateway Dashboard → System → Metric Permissions |
 | `INDMONEY_MCP_URL` | No | IndMoney MCP endpoint (default: `https://mcp.indmoney.com/mcp`) |
 | `INDMONEY_SCOPES` | No | OAuth scopes (default: `portfolio:read market:read`) |
 | `INDMONEY_DISPLAY_TOOL` | No | Tool name (without prefix) for dashboard card |
