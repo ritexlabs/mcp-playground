@@ -1298,16 +1298,26 @@ function renderGmailChips() {
     return;
   }
   empty.style.display = 'none';
-  container.innerHTML = _gmailBlocked.map((entry, i) => `
-    <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;
-      background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.25);
-      font-size:12px;color:#93c5fd">
-      ${entry}
-      <button onclick="gmailRemoveEntry(${i})"
-        style="background:none;border:none;cursor:pointer;color:#93c5fd;opacity:.7;font-size:14px;
-               line-height:1;padding:0;display:flex;align-items:center"
-        aria-label="Remove ${entry}">×</button>
-    </span>`).join('');
+  container.innerHTML = '';
+  _gmailBlocked.forEach((entry, i) => {
+    const chip = document.createElement('span');
+    chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;' +
+      'background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.25);' +
+      'font-size:12px;color:#93c5fd';
+
+    chip.appendChild(document.createTextNode(entry));
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.style.cssText = 'background:none;border:none;cursor:pointer;color:#93c5fd;opacity:.7;font-size:14px;' +
+      'line-height:1;padding:0;display:flex;align-items:center';
+    btn.setAttribute('aria-label', `Remove ${entry}`);
+    btn.textContent = '×';
+    btn.addEventListener('click', () => gmailRemoveEntry(i));
+
+    chip.appendChild(btn);
+    container.appendChild(chip);
+  });
 }
 
 function gmailAddEntry() {
