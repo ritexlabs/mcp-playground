@@ -56,6 +56,13 @@ class Settings(BaseSettings):
     # Comma-separated exact addresses or @domains to hide from Gmail card.
     # Example: "noreply@github.com,@linkedin.com"
 
+    # ── System Metrics ──
+    SYSTEM_DISABLED_METRICS: str = "temperature,disk_io,top_processes"
+    # Comma-separated metric names to skip collecting (avoids elevated-permission prompts).
+    # Defaults to disabling the three metrics that may require admin/sudo access.
+    # Safe to re-enable via Settings → System in the dashboard.
+    # Valid values: temperature, disk_io, top_processes, battery, load_avg, cpu_freq, swap
+
     # ── WhatsApp Business Cloud API ──
     WHATSAPP_ACCESS_TOKEN: str | None = None
     WHATSAPP_PHONE_NUMBER_ID: str | None = None

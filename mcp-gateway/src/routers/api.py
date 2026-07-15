@@ -57,10 +57,28 @@ async def calendar(daysAhead: int = 1, maxResults: int = 15):
 @router.get("/system")
 async def system_stats():
     try:
-        result = await asyncio.to_thread(fetch_system_stats)
+        raw = settings.SYSTEM_DISABLED_METRICS or ""
+        disabled = frozenset(m.strip() for m in raw.split(",") if m.strip())
+        result = await asyncio.to_thread(fetch_system_stats, disabled)
         return result
     except Exception as exc:
         raise HTTPException(500, str(exc)) from exc
+
+
+@router.get("/system/config")
+async def system_config_get():
+    raw = settings.SYSTEM_DISABLED_METRICS or ""
+    disabled = [m.strip() for m in raw.split(",") if m.strip()]
+    return {"disabled": disabled}
+
+
+@router.post("/system/config")
+async def system_config_save(body: dict):
+    disabled: list[str] = body.get("disabled", [])
+    value = ",".join(d.strip() for d in disabled if d.strip())
+    settings.SYSTEM_DISABLED_METRICS = value
+    await asyncio.to_thread(update_env_setting, "SYSTEM_DISABLED_METRICS", value)
+    return {"ok": True, "disabled": disabled}
 
 
 @router.get("/gmail/config")

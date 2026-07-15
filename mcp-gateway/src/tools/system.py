@@ -27,16 +27,16 @@ def _cpu_temp() -> float | None:
     except (AttributeError, NotImplementedError):
         pass
 
-    # macOS: try osx-cpu-temp (brew install osx-cpu-temp) or powermetrics
+    # macOS: try osx-cpu-temp (brew install osx-cpu-temp)
+    # Note: powermetrics requires sudo and triggers admin prompts — skip it.
     if platform.system() == "Darwin":
-        for cmd in (["osx-cpu-temp"], ["sudo", "powermetrics", "--samplers", "smc", "-n", "1", "-i", "1"]):
-            try:
-                r = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
-                m = re.search(r"(\d+\.?\d*)\s*°?C", r.stdout)
-                if m:
-                    return round(float(m.group(1)), 1)
-            except (FileNotFoundError, subprocess.TimeoutExpired, PermissionError):
-                continue
+        try:
+            r = subprocess.run(["osx-cpu-temp"], capture_output=True, text=True, timeout=3)
+            m = re.search(r"(\d+\.?\d*)\s*°?C", r.stdout)
+            if m:
+                return round(float(m.group(1)), 1)
+        except (FileNotFoundError, subprocess.TimeoutExpired, PermissionError):
+            pass
 
     return None
 
@@ -129,6 +129,8 @@ def _disk_io() -> dict:
         _last_disk    = cur
         _last_disk_ts = now
         return {"read_bps": read_bps, "write_bps": write_bps}
+    except PermissionError:
+        return {}
     except Exception:
         return {}
 
@@ -215,18 +217,19 @@ def _top_processes(n: int = 5) -> list:
         return []
 
 
-def fetch_system_stats() -> dict:
+def fetch_system_stats(disabled: frozenset = frozenset()) -> dict:
     cpu_pct = psutil.cpu_percent(interval=0.5)
     ram     = psutil.virtual_memory()
-    swap    = psutil.swap_memory()
 
     swap_data = None
-    if swap.total > 0:
-        swap_data = {
-            "percent":  round(swap.percent, 1),
-            "used_gb":  round(swap.used  / 1_073_741_824, 1),
-            "total_gb": round(swap.total / 1_073_741_824, 1),
-        }
+    if "swap" not in disabled:
+        swap = psutil.swap_memory()
+        if swap.total > 0:
+            swap_data = {
+                "percent":  round(swap.percent, 1),
+                "used_gb":  round(swap.used  / 1_073_741_824, 1),
+                "total_gb": round(swap.total / 1_073_741_824, 1),
+            }
 
     return {
         "cpu": {
@@ -240,14 +243,14 @@ def fetch_system_stats() -> dict:
             "total_gb": round(ram.total / 1_073_741_824, 1),
         },
         "disk":          _disk_usage(),
-        "temperature":   _cpu_temp(),
+        "temperature":   None if "temperature" in disabled else _cpu_temp(),
         "network":       _net_io(),
-        "disk_io":       _disk_io(),
-        "battery":       _battery(),
+        "disk_io":       {} if "disk_io" in disabled else _disk_io(),
+        "battery":       None if "battery" in disabled else _battery(),
         "uptime":        _uptime(),
-        "load_avg":      _load_avg(),
-        "cpu_freq":      _cpu_freq(),
+        "load_avg":      None if "load_avg" in disabled else _load_avg(),
+        "cpu_freq":      None if "cpu_freq" in disabled else _cpu_freq(),
         "swap":          swap_data,
-        "top_processes": _top_processes(),
+        "top_processes": [] if "top_processes" in disabled else _top_processes(),
         "os":            _os_info(),
     }

@@ -645,6 +645,24 @@
         <button class="btn btn-secondary" onclick="loadSystemStats()">Refresh</button>
       </div>
     </div>
+
+    <!-- Metric permissions config card -->
+    <div class="card" style="margin-top:14px">
+      <div class="card-title">Metric Permissions</div>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:16px;">
+        Metrics marked <span style="color:var(--amber);font-weight:600">elevated</span> may trigger admin/sudo prompts on some machines.
+        They are disabled by default. Enable only if your machine allows them without prompts.
+      </p>
+
+      <div id="sys-cfg-rows" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px"></div>
+
+      <div id="sys-cfg-msg" class="msg" style="margin-bottom:8px"></div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="loadSystemConfig()">Refresh</button>
+        <button class="btn btn-primary"   onclick="saveSystemConfig()">Save</button>
+      </div>
+      <p class="hint" style="margin-top:12px">Changes take effect on the next System card refresh on the daily dashboard.</p>
+    </div>
   </div>
 
   <!-- TUNNEL TAB -->
@@ -1427,6 +1445,73 @@ async function loadSystemStats() {
   }
 }
 
+// ── System config ─────────────────────────────────────────────────────────────
+
+const SYS_METRICS = [
+  { id: 'temperature',  label: 'CPU Temperature',  elevated: true,  note: 'Requires osx-cpu-temp (macOS) or kernel sensor access.' },
+  { id: 'disk_io',      label: 'Disk I/O Rates',   elevated: true,  note: 'May require elevated permissions on Windows.' },
+  { id: 'top_processes',label: 'Top Processes',    elevated: true,  note: 'May trigger UAC/sudo for system-level processes.' },
+  { id: 'battery',      label: 'Battery Status',   elevated: false, note: 'No elevated permissions required.' },
+  { id: 'load_avg',     label: 'Load Average',     elevated: false, note: 'No elevated permissions required.' },
+  { id: 'swap',         label: 'Swap / Page File', elevated: false, note: 'No elevated permissions required.' },
+];
+
+let _sysDisabled = new Set();
+
+function _renderSysToggles() {
+  const container = document.getElementById('sys-cfg-rows');
+  container.innerHTML = '';
+  SYS_METRICS.forEach(m => {
+    const off = _sysDisabled.has(m.id);
+    const row = document.createElement('div');
+    row.style.cssText = `display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:1px solid;transition:all .2s;background:${off ? 'rgba(71,85,105,.06)' : 'rgba(52,211,153,.06)'};border-color:${off ? 'var(--border)' : 'rgba(52,211,153,.25)'};opacity:${off ? '.6' : '1'}`;
+    row.innerHTML = `
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;font-weight:600;color:var(--text)">${m.label}</span>
+          ${m.elevated ? `<span style="font-size:10px;padding:1px 7px;border-radius:5px;background:rgba(251,191,36,.12);color:var(--amber);font-weight:600">elevated</span>` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px">${m.note}</div>
+      </div>
+      <button
+        onclick="sysToggle('${m.id}')"
+        style="position:relative;width:36px;height:20px;border-radius:99px;border:none;cursor:pointer;flex-shrink:0;transition:background .2s;background:${off ? 'rgba(255,255,255,.1)' : 'rgba(52,211,153,.45)'}"
+        title="${off ? 'Disabled — click to enable' : 'Enabled — click to disable'}"
+        aria-label="${off ? 'Enable' : 'Disable'} ${m.label}"
+      >
+        <span style="position:absolute;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:left .2s;left:${off ? '2px' : 'calc(100% - 18px)'}"></span>
+      </button>`;
+    container.appendChild(row);
+  });
+}
+
+function sysToggle(id) {
+  _sysDisabled.has(id) ? _sysDisabled.delete(id) : _sysDisabled.add(id);
+  _renderSysToggles();
+}
+
+async function loadSystemConfig() {
+  const msg = document.getElementById('sys-cfg-msg');
+  msg.textContent = '';
+  const d = await api('/api/system/config');
+  if (d.error) { msg.textContent = '✗ ' + d.error; msg.className = 'msg msg-err'; return; }
+  _sysDisabled = new Set(d.disabled || []);
+  _renderSysToggles();
+}
+
+async function saveSystemConfig() {
+  const msg = document.getElementById('sys-cfg-msg');
+  msg.textContent = ''; msg.className = 'msg';
+  const d = await api('/api/system/config', { method: 'POST', body: JSON.stringify({ disabled: [..._sysDisabled] }) });
+  if (d.ok) {
+    msg.textContent = '✓ Saved — takes effect on next System card refresh';
+    msg.className   = 'msg msg-ok';
+  } else {
+    msg.textContent = '✗ ' + (d.detail || d.error || 'Save failed');
+    msg.className   = 'msg msg-err';
+  }
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 (async function init() {
   await Promise.all([
@@ -1437,6 +1522,7 @@ async function loadSystemStats() {
     loadWaStatus(),
     loadGmailConfig(),
     loadSystemStats(),
+    loadSystemConfig(),
     loadTunnelStatus(),
     loadToken(),
   ]);
