@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { playAlarmSound, loadAlarmConfig, saveAlarmConfig } from '../utils/alarmUtils.js'
 
 const TABS = [
   { id: 'location', label: 'Location' },
   { id: 'gateway',  label: 'Gateway'  },
   { id: 'ai',       label: 'AI'       },
+  { id: 'notes',    label: 'Notes'    },
   { id: 'layout',   label: 'Layout'   },
 ]
 
@@ -392,6 +394,102 @@ function AiTab() {
   )
 }
 
+// ── Tab: Notes (alarm config) ─────────────────────────────────────────────────
+
+const ANIMATIONS = [
+  { id: 'bounce',    label: 'Bounce'    },
+  { id: 'confetti',  label: 'Confetti'  },
+  { id: 'fireworks', label: 'Fireworks' },
+  { id: 'wave',      label: 'Wave'      },
+  { id: 'shake',     label: 'Shake'     },
+]
+const RINGTONES = [
+  { id: 'chime', label: 'Chime' },
+  { id: 'bell',  label: 'Bell'  },
+  { id: 'beep',  label: 'Beep'  },
+  { id: 'alarm', label: 'Alarm' },
+]
+const SNOOZES = [5, 10, 15]
+
+function NotesTab() {
+  const [config, setConfig] = useState(loadAlarmConfig)
+
+  function update(key, val) {
+    const next = { ...config, [key]: val }
+    setConfig(next)
+    saveAlarmConfig(next)
+    window.dispatchEvent(new CustomEvent('alarm-config-changed', { detail: next }))
+  }
+
+  function chipStyle(active) {
+    return {
+      padding:      '6px 12px',
+      borderRadius: '8px',
+      fontSize:     '13px',
+      fontWeight:   500,
+      cursor:       'pointer',
+      background:   active ? `${MODAL_ACCENT}22` : 'rgba(255,255,255,0.05)',
+      color:        active ? MODAL_ACCENT : '#94a3b8',
+      border:       `1px solid ${active ? `${MODAL_ACCENT}40` : 'rgba(255,255,255,0.08)'}`,
+      transition:   'all .15s',
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <p className="text-sm text-slate-400">Configure how task reminders look and sound when they fire.</p>
+
+      {/* Animation */}
+      <div className="flex flex-col gap-2">
+        <label className="card-label">Animation</label>
+        <div className="flex flex-wrap gap-2">
+          {ANIMATIONS.map(a => (
+            <button key={a.id} onClick={() => update('animation', a.id)} style={chipStyle(config.animation === a.id)}>
+              {a.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Ringtone */}
+      <div className="flex flex-col gap-2">
+        <label className="card-label">Ringtone</label>
+        <div className="flex flex-wrap gap-2">
+          {RINGTONES.map(r => (
+            <div key={r.id} className="flex items-center gap-1">
+              <button onClick={() => update('ringtone', r.id)} style={chipStyle(config.ringtone === r.id)}>
+                {r.label}
+              </button>
+              <button
+                onClick={() => playAlarmSound(r.id)}
+                title={`Preview ${r.label}`}
+                style={{
+                  padding: '6px 8px', borderRadius: '8px', fontSize: '11px', cursor: 'pointer',
+                  background: 'rgba(255,255,255,0.04)', color: '#64748b',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                }}>
+                ▶
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Snooze */}
+      <div className="flex flex-col gap-2">
+        <label className="card-label">Snooze Duration</label>
+        <div className="flex gap-2">
+          {SNOOZES.map(s => (
+            <button key={s} onClick={() => update('snooze', s)} style={chipStyle(config.snooze === s)}>
+              {s} min
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Tab: Layout ───────────────────────────────────────────────────────────────
 
 function LayoutTab({ cardDefs, cardLayout, onLayoutChange, onClose }) {
@@ -505,6 +603,7 @@ export default function SettingsModal({
           {activeTab === 'location' && <LocationTab location={location} onSave={handleSaveLocation} onClose={onClose} />}
           {activeTab === 'gateway'  && <GatewayTab onClose={onClose} />}
           {activeTab === 'ai'       && <AiTab />}
+          {activeTab === 'notes'    && <NotesTab />}
           {activeTab === 'layout'   && (
             <LayoutTab cardDefs={cardDefs} cardLayout={cardLayout} onLayoutChange={onLayoutChange} onClose={onClose} />
           )}

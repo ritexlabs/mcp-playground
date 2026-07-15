@@ -11,6 +11,8 @@ export function parseWeather(raw) {
     precip:    m(/\*\*Precipitation:\*\*\s*(.*)/i),
     wind:      m(/\*\*Wind Speed:\*\*\s*(.*)/i),
     location:  m(/Weather for \*\*(.*?)\*\*/i),
+    aqi:       raw?.aqi      ?? null,
+    forecast:  raw?.forecast ?? [],
   }
 }
 

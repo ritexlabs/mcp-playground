@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 
 import httpx
 
@@ -25,7 +26,7 @@ async def handle_get_weather(
     latitude: float | None = None,
     longitude: float | None = None,
     temperature_unit: str = "celsius",
-) -> str:
+) -> dict:
     if not location and (latitude is None or longitude is None):
         raise ValidationError(
             "Provide either a location name or latitude/longitude coordinates."
@@ -120,7 +121,81 @@ async def handle_get_weather(
             else:
                 text += "\nℹ️ *No active severe weather warnings on the IMD alert system.*\n"
 
-    return text
+        aqi      = await _fetch_aqi(client, lat, lon) if lat is not None else None
+        forecast = await _fetch_forecast(client, lat, lon, temperature_unit) if lat is not None else []
+
+    return {
+        "content":  [{"type": "text", "text": text}],
+        "aqi":      aqi,
+        "forecast": forecast,
+    }
+
+
+async def _fetch_aqi(client: httpx.AsyncClient, lat: float, lon: float) -> dict | None:
+    try:
+        resp = await client.get(
+            "https://air-quality-api.open-meteo.com/v1/air-quality",
+            params={"latitude": lat, "longitude": lon, "current": "us_aqi,pm2_5,pm10"},
+        )
+        if not resp.is_success:
+            return None
+        cur = resp.json().get("current", {})
+        aqi = cur.get("us_aqi")
+        if aqi is None:
+            return None
+        if aqi <= 50:
+            cat, color = "Good", "#34d399"
+        elif aqi <= 100:
+            cat, color = "Moderate", "#fbbf24"
+        elif aqi <= 150:
+            cat, color = "Unhealthy (Sensitive)", "#f97316"
+        elif aqi <= 200:
+            cat, color = "Unhealthy", "#fb7185"
+        elif aqi <= 300:
+            cat, color = "Very Unhealthy", "#c084fc"
+        else:
+            cat, color = "Hazardous", "#be123c"
+        return {
+            "value":    int(aqi),
+            "category": cat,
+            "color":    color,
+            "pm25":     round(cur.get("pm2_5") or 0, 1),
+        }
+    except Exception:
+        return None
+
+
+async def _fetch_forecast(client: httpx.AsyncClient, lat: float, lon: float, temperature_unit: str) -> list:
+    try:
+        params: dict = {
+            "latitude": lat, "longitude": lon,
+            "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+            "timezone": "auto",
+            "forecast_days": 6,
+        }
+        if temperature_unit == "fahrenheit":
+            params["temperature_unit"] = "fahrenheit"
+        resp = await client.get("https://api.open-meteo.com/v1/forecast", params=params)
+        if not resp.is_success:
+            return []
+        d = resp.json().get("daily", {})
+        dates  = d.get("time", [])
+        codes  = d.get("weather_code", [])
+        highs  = d.get("temperature_2m_max", [])
+        lows   = d.get("temperature_2m_min", [])
+        rains  = d.get("precipitation_probability_max", [])
+        result = []
+        for i in range(1, min(6, len(dates))):
+            result.append({
+                "day":      datetime.strptime(dates[i], "%Y-%m-%d").strftime("%a"),
+                "high":     round(highs[i]) if i < len(highs) and highs[i] is not None else None,
+                "low":      round(lows[i])  if i < len(lows)  and lows[i]  is not None else None,
+                "code":     codes[i]        if i < len(codes) else 0,
+                "rain_pct": rains[i]        if i < len(rains) and rains[i] is not None else None,
+            })
+        return result
+    except Exception:
+        return []
 
 
 async def _fetch_imd_alerts(client: httpx.AsyncClient, location: str) -> list[str]:

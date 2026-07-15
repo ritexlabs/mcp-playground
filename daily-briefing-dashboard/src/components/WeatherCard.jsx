@@ -337,6 +337,19 @@ function Metric({ label, value }) {
   )
 }
 
+function wmoEmoji(code) {
+  if (code === 0 || code === 1)              return '☀️'
+  if (code === 2)                            return '🌤️'
+  if (code === 3)                            return '☁️'
+  if (code === 45 || code === 48)            return '🌫️'
+  if (code >= 51 && code <= 55)             return '🌦️'
+  if (code >= 61 && code <= 67)             return '🌧️'
+  if (code >= 71 && code <= 77)             return '❄️'
+  if (code >= 80 && code <= 82)             return '🌦️'
+  if (code >= 95)                            return '⛈️'
+  return '☀️'
+}
+
 export default function WeatherCard({ data, loading, error, location, onRetry, onChangeLocation, delay = 0, syncedAt }) {
   return (
     <BentoCard accent={ACCENT} delay={delay} syncedAt={syncedAt} className="p-5 flex flex-col h-full">
@@ -365,7 +378,7 @@ export default function WeatherCard({ data, loading, error, location, onRetry, o
         {!loading && error && <CardError message={error} onRetry={onRetry} />}
 
         {!loading && !error && data && (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 flex-1">
             {/* Main row: temp + icon side by side */}
             <div className="flex items-center justify-between gap-2">
               <div>
@@ -377,16 +390,55 @@ export default function WeatherCard({ data, loading, error, location, onRetry, o
                 <p className="text-xs text-slate-500 mt-0.5">Feels like {data.feelsLike}</p>
               </div>
               <div className="opacity-90 flex-shrink-0">
-                {/* Scale icons down to 52px */}
                 {ICONS[weatherIcon(data.condition)] ?? ICONS.sunny}
               </div>
             </div>
+
+            {/* AQI pill */}
+            {data.aqi && (
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                  style={{ background: `${data.aqi.color}18`, color: data.aqi.color, border: `1px solid ${data.aqi.color}40` }}
+                >
+                  AQI {data.aqi.value}
+                </span>
+                <span className="text-[11px] text-slate-400">{data.aqi.category}</span>
+                {data.aqi.pm25 > 0 && (
+                  <span className="text-[10px] text-slate-600">PM2.5 {data.aqi.pm25} µg/m³</span>
+                )}
+              </div>
+            )}
 
             <div className="metric-grid">
               <Metric label="Wind"     value={data.wind} />
               <Metric label="Humidity" value={data.humidity} />
               <Metric label="Rain"     value={data.precip} />
             </div>
+
+            {/* 5-day forecast strip */}
+            {data.forecast?.length > 0 && (
+              <div
+                className="flex gap-1 pt-2 mt-auto"
+                style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
+              >
+                {data.forecast.map((day, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-lg"
+                    style={{ background: 'rgba(255,255,255,0.04)' }}
+                  >
+                    <span className="text-[10px] font-medium text-slate-400">{day.day}</span>
+                    <span style={{ fontSize: '14px', lineHeight: 1.2 }}>{wmoEmoji(day.code)}</span>
+                    <span className="text-[11px] font-semibold text-slate-200 tabular-nums">{day.high ?? '--'}°</span>
+                    <span className="text-[10px] text-slate-500 tabular-nums">{day.low ?? '--'}°</span>
+                    {day.rain_pct >= 20 && (
+                      <span className="text-[9px] text-cyan-400 tabular-nums">{day.rain_pct}%</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

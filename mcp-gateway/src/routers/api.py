@@ -45,7 +45,7 @@ async def gateway_status():
 @router.get("/weather")
 async def weather(location: str = "Bengaluru"):
     result = await handle_get_weather(location=location)
-    return {"content": [{"type": "text", "text": result}], "isError": False}
+    return result
 
 
 @router.get("/calendar")

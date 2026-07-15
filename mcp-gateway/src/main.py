@@ -189,12 +189,13 @@ async def _dispatch(name: str, args: dict) -> str:
             return handle_calculate(args.get("expression", ""))
 
         case "get_weather":
-            return await handle_get_weather(
+            result = await handle_get_weather(
                 location=args.get("location"),
                 latitude=args.get("latitude"),
                 longitude=args.get("longitude"),
                 temperature_unit=args.get("temperature_unit", "celsius"),
             )
+            return result["content"][0]["text"]
 
         case "gmail_list_latest":
             return await asyncio.to_thread(

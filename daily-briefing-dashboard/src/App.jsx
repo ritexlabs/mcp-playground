@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useDashboard }      from './hooks/useDashboard.js'
 import Header                from './components/Header.jsx'
 import StatusPill            from './components/StatusPill.jsx'
@@ -10,7 +10,10 @@ import IndMoneyCard          from './components/IndMoneyCard.jsx'
 import WhatsAppCard          from './components/WhatsAppCard.jsx'
 import GmailCard             from './components/GmailCard.jsx'
 import SystemCard            from './components/SystemCard.jsx'
+import QuickNotesCard        from './components/QuickNotesCard.jsx'
+import AlarmNotification     from './components/AlarmNotification.jsx'
 import SettingsModal         from './components/SettingsModal.jsx'
+import { loadTasks, saveTasks, loadAlarmConfig } from './utils/alarmUtils.js'
 
 // ── Card catalogue ────────────────────────────────────────────────────────────
 
@@ -23,6 +26,7 @@ export const CARD_DEFS = [
   { id: 'celebrations', label: 'Celebrations',    icon: '🎉' },
   { id: 'whatsapp',     label: 'WhatsApp',        icon: '💬' },
   { id: 'stocks',       label: 'Stock Portfolio', icon: '📈' },
+  { id: 'notes',        label: 'Quick Notes',     icon: '📝' },
 ]
 
 // Fixed display order — never changes, only visibility is user-controlled
@@ -55,9 +59,11 @@ function computeSpans(visible) {
     row2.forEach(id => { spans[id] = 'col-span-12' })
   }
 
-  // Row 3 — WhatsApp · Stocks side by side
-  const row3 = ['whatsapp', 'stocks'].filter(has)
-  if (row3.length === 2) {
+  // Row 3 — WhatsApp · Stocks · Notes
+  const row3 = ['whatsapp', 'stocks', 'notes'].filter(has)
+  if (row3.length === 3) {
+    row3.forEach(id => { spans[id] = 'col-span-12 md:col-span-4' })
+  } else if (row3.length === 2) {
     row3.forEach(id => { spans[id] = 'col-span-12 md:col-span-6' })
   } else {
     row3.forEach(id => { spans[id] = 'col-span-12' })
@@ -78,9 +84,51 @@ function loadCardLayout() {
 
 export default function App() {
   const { state, actions, syncedAt } = useDashboard()
-  const [refreshing, setRefreshing] = useState(false)
-  const [settings,   setSettings]   = useState({ open: false, tab: 'location' })
-  const [cardLayout, setCardLayout] = useState(loadCardLayout)
+  const [refreshing,  setRefreshing]  = useState(false)
+  const [settings,    setSettings]    = useState({ open: false, tab: 'location' })
+  const [cardLayout,  setCardLayout]  = useState(loadCardLayout)
+  const [alarmTask,   setAlarmTask]   = useState(null)
+  const [alarmConfig, setAlarmConfig] = useState(loadAlarmConfig)
+  const alarmTaskRef  = useRef(null)
+
+  // Alarm checker — runs every 10s
+  useEffect(() => {
+    const check = () => {
+      if (alarmTaskRef.current) return
+      const tasks = loadTasks()
+      const now   = Date.now()
+      const fired = tasks.find(t => !t.done && t.alarm && new Date(t.alarm).getTime() <= now)
+      if (fired) { alarmTaskRef.current = fired; setAlarmTask(fired) }
+    }
+    check()
+    const id = setInterval(check, 10000)
+    return () => clearInterval(id)
+  }, [])
+
+  // Keep alarmConfig fresh when settings tab saves
+  useEffect(() => {
+    const handler = e => setAlarmConfig(e.detail)
+    window.addEventListener('alarm-config-changed', handler)
+    return () => window.removeEventListener('alarm-config-changed', handler)
+  }, [])
+
+  function handleSnooze(minutes) {
+    const tasks = loadTasks()
+    const task  = tasks.find(t => t.id === alarmTask?.id)
+    if (task) { task.alarm = new Date(Date.now() + minutes * 60000).toISOString(); saveTasks(tasks) }
+    window.dispatchEvent(new CustomEvent('tasks-updated'))
+    alarmTaskRef.current = null
+    setAlarmTask(null)
+  }
+
+  function handleDismiss() {
+    const tasks = loadTasks()
+    const task  = tasks.find(t => t.id === alarmTask?.id)
+    if (task) { task.alarm = null; saveTasks(tasks) }
+    window.dispatchEvent(new CustomEvent('tasks-updated'))
+    alarmTaskRef.current = null
+    setAlarmTask(null)
+  }
 
   const openSettings = useCallback((tab = 'location') => {
     setSettings({ open: true, tab })
@@ -181,6 +229,9 @@ export default function App() {
                 {id === 'system' && (
                   <SystemCard delay={delay} />
                 )}
+                {id === 'notes' && (
+                  <QuickNotesCard delay={delay} />
+                )}
               </div>
             )
           })}
@@ -201,6 +252,16 @@ export default function App() {
         cardLayout={cardLayout}
         onLayoutChange={setCardLayout}
       />
+
+      {/* ── Alarm notification overlay ── */}
+      {alarmTask && (
+        <AlarmNotification
+          task={alarmTask}
+          config={alarmConfig}
+          onSnooze={handleSnooze}
+          onDismiss={handleDismiss}
+        />
+      )}
     </>
   )
 }
