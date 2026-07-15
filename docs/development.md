@@ -107,8 +107,13 @@ See [`docs/architecture.md`](architecture.md#configuration-reference) for the fu
 ```bash
 cd daily-briefing-dashboard
 npm install
+npm run build           # ⚠️ required — builds React app into dist/ (must re-run after any src/ change)
 cp .env.example .env    # only needed if gateway is not on http://127.0.0.1:8000
 ```
+
+> **Why `npm run build` is required:** `server.js` serves from `dist/` if it exists, otherwise
+> falls back to `public/` which is the legacy static app. Skipping the build means you see the
+> old UI with no WhatsApp card, no IndMoney card, and no modern settings panel.
 
 ### Start / Stop (recommended)
 
