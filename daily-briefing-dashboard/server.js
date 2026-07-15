@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
+import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 
@@ -19,9 +20,22 @@ const DASHBOARD_ORIGIN  = process.env.DASHBOARD_ORIGIN || "http://localhost:8080
 app.use(cors({ origin: DASHBOARD_ORIGIN }));
 app.use(express.json());
 
-const DIST_DIR  = path.join(__dirname, "dist");
+const DIST_DIR   = path.join(__dirname, "dist");
 const PUBLIC_DIR = path.join(__dirname, "public");
-const SERVE_DIR  = fs.existsSync(path.join(DIST_DIR, "index.html")) ? DIST_DIR : PUBLIC_DIR;
+
+// Auto-build the React app if dist/ is missing so the server always serves
+// the latest UI without requiring a manual "npm run build" step after a fresh clone.
+if (!fs.existsSync(path.join(DIST_DIR, "index.html"))) {
+  console.log("[server] dist/ not found — running npm run build...");
+  try {
+    execSync("npm run build", { cwd: __dirname, stdio: "inherit" });
+    console.log("[server] build complete.");
+  } catch (e) {
+    console.error("[server] build failed — falling back to public/", e.message);
+  }
+}
+
+const SERVE_DIR = fs.existsSync(path.join(DIST_DIR, "index.html")) ? DIST_DIR : PUBLIC_DIR;
 app.use(express.static(SERVE_DIR));
 
 app.use((_req, res, next) => {
