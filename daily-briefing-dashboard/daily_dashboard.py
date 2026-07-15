@@ -3,10 +3,10 @@
 Daily Briefing Dashboard management — start, stop, status, restart.
 
 Usage (from anywhere in the repo):
-    python scripts/daily_dashboard.py start
-    python scripts/daily_dashboard.py stop
-    python scripts/daily_dashboard.py status
-    python scripts/daily_dashboard.py restart
+    python daily-briefing-dashboard/daily_dashboard.py start
+    python daily-briefing-dashboard/daily_dashboard.py stop
+    python daily-briefing-dashboard/daily_dashboard.py status
+    python daily-briefing-dashboard/daily_dashboard.py restart
 """
 
 import os
@@ -204,7 +204,7 @@ def do_start() -> None:
     else:
         warn(f"MCP Gateway not reachable at {gateway_url}")
         info("Dashboard will start anyway — it retries the gateway connection automatically.")
-        info("To start the gateway:  python scripts/mcp_gateway.py start")
+        info("To start the gateway:  python mcp-gateway/mcp_gateway.py start")
 
     # Install npm packages if missing
     if not (DASHBOARD_DIR / "node_modules").exists():

@@ -38,7 +38,7 @@ All management scripts are written in Python and run identically on Windows, mac
 | **Windows 10 / 11** | [docs/windows-setup.md](docs/windows-setup.md) — step-by-step: install Python & Node.js, credential setup, running the stack, troubleshooting |
 | **macOS / Linux** | [docs/development.md](docs/development.md) — local setup, Google auth, service management |
 
-> **macOS / Linux users:** the `.sh` scripts are still available as aliases (e.g. `./start.sh`), but the `.py` scripts are recommended going forward as they work everywhere.
+> All management scripts are `.py` files and run identically on Windows, macOS, and Linux. No shell scripts are required.
 
 ---
 
@@ -55,25 +55,15 @@ mcp-playground/
 │   │   ├── config/           # Settings (pydantic-settings) + secrets (keyring)
 │   │   └── utils/            # Rate limiter, JSON audit logger, error types
 │   ├── scripts/              # One-off helpers (auth_all.py)
+│   ├── mcp_gateway.py        # Gateway manager: setup / start / stop / status / restart
 │   ├── requirements.txt
-│   ├── setup.py              # Create .venv, install deps  (all platforms)
-│   ├── start.py              # Launch uvicorn in background with PID guard  (all platforms)
-│   ├── stop.py               # Kill by PID or port  (all platforms)
-│   ├── setup.sh              # macOS / Linux alias for setup.py
-│   ├── start.sh              # macOS / Linux alias for start.py
-│   └── stop.sh               # macOS / Linux alias for stop.py
+│   └── .env.example          # Config template — copy to .env and fill in your values
 │
-├── daily-briefing-dashboard/ # Node/Express frontend
-│   ├── server.js             # Express API + MCP SSE client + config proxy routes
-│   ├── public/
-│   │   ├── index.html        # Dashboard shell + settings dialog
-│   │   ├── app.js            # All UI logic: weather, calendar, Gmail, stocks, auth UI
-│   │   ├── celebrations.js   # Birthday / anniversary detection
-│   │   └── style.css         # Dark glassmorphism theme
-│   ├── start.py              # Start dashboard  (all platforms)
-│   ├── stop.py               # Stop dashboard   (all platforms)
-│   ├── start.sh              # macOS / Linux alias
-│   └── stop.sh               # macOS / Linux alias
+├── daily-briefing-dashboard/ # Node/Express + React frontend
+│   ├── server.js             # Express server: gateway proxy, LLM endpoints, auto-build
+│   ├── src/                  # React app (Vite) — auto-built on first server start
+│   ├── public/               # Legacy static fallback (used only when dist/ is absent)
+│   └── daily_dashboard.py    # Dashboard manager: start / stop / status / restart
 │
 ├── docs/
 │   ├── architecture.md       # System design, data flows, design decisions
@@ -82,9 +72,7 @@ mcp-playground/
 │   └── windows-setup.md      # Windows 10/11 step-by-step setup guide
 │
 └── scripts/
-    ├── start_dashboard.py    # Unified stack: start / stop / restart / status  (all platforms)
-    ├── start_dashboard.sh    # macOS / Linux alias
-    └── setup.py              # git skip-worktree + hooks config  (all platforms)
+    └── start_dashboard.py    # Unified stack: start / stop / restart / status  (all platforms)
 ```
 
 ---
@@ -105,16 +93,20 @@ python scripts/start_dashboard.py start
 python scripts\start_dashboard.py start
 ```
 
+This handles first-run setup automatically: creates `.venv`, installs Python and Node dependencies, builds the React app, then launches both services and opens your browser.
+
 ### Option B — Step by step
 
 **Step 1 — Gateway setup (first run only)**
 
 ```bash
 cd mcp-gateway
-python setup.py
+python mcp_gateway.py setup
 ```
 
-Copy `.env.example` to `.env` and fill in your `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then authorise Google:
+This creates `.venv`, installs dependencies, and copies `.env.example` → `.env`.
+
+Edit `mcp-gateway/.env` and fill in your `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then authorise Google:
 
 ```bash
 .venv/bin/python scripts/auth_all.py        # macOS / Linux
@@ -124,15 +116,13 @@ Copy `.env.example` to `.env` and fill in your `GOOGLE_CLIENT_ID` and `GOOGLE_CL
 **Step 2 — Start the gateway**
 
 ```bash
-cd mcp-gateway
-python start.py              # starts on http://127.0.0.1:8000
+python mcp-gateway/mcp_gateway.py start     # starts on http://127.0.0.1:8000
 ```
 
 **Step 3 — Start the dashboard**
 
 ```bash
-cd daily-briefing-dashboard
-python start.py              # starts on http://localhost:8080
+python daily-briefing-dashboard/daily_dashboard.py start   # starts on http://localhost:8080
 ```
 
 Open [http://localhost:8080](http://localhost:8080), then **Settings → Google → Connect Google**.
