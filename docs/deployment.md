@@ -6,11 +6,16 @@ This project is designed for **local personal use** on macOS. Both the gateway a
 
 ## Requirements
 
-| Tool | Version |
-|------|---------|
-| Python | 3.11+ |
-| Node.js | 18+ |
-| macOS | 12+ (Keychain required for token storage) |
+| Tool | Version | Notes |
+|------|---------|-------|
+| Python | 3.11+ | |
+| Node.js | 18+ | |
+| psutil | 5.6.2+ | Installed automatically via `requirements.txt` |
+| macOS 12+ | — | Uses Keychain for token storage |
+| Windows 10+ | — | Uses Credential Manager for token storage |
+| Linux | — | Uses Secret Service (libsecret) for token storage |
+
+See [windows-setup.md](windows-setup.md) for Windows-specific instructions.
 
 ---
 
@@ -122,13 +127,23 @@ open http://127.0.0.1:8000/auth/google
 
 Grant all requested permissions (Gmail, Calendar, Drive, Sheets). The token is stored in macOS Keychain — you will not need to re-authenticate unless you revoke access.
 
+### Set your display name (optional)
+
+Open **Settings → Location** and fill in **Your Name**. This personalises the greeting to "Good Morning, Ritesh 👋". The name is stored only in your browser (`localStorage`) and never sent to the server.
+
+### Configure Gmail blocked senders (optional)
+
+Open **Settings → Gmail** and add any sender addresses or domains to exclude from the Gmail card.
+
 ### Connect IndMoney (optional)
 
 1. Open the dashboard and click **Settings → IndMoney → Connect IndMoney**.
 2. A new window opens — log in with your IndMoney mobile number, OTP, and MPIN.
-3. The token is stored in macOS Keychain automatically.
+3. The token is stored in the OS credential store automatically.
 
 > **Session expiry** — IndMoney access tokens expire periodically. When your token expires the "My Networth" card shows a **"Session Expired — Reconnect IndMoney"** button. Click it to re-authenticate without losing other settings.
+
+> **Family portfolio** — IndMoney's MCP server only exposes individual portfolio data. The Family tab in the Net Worth card explains this limitation and links to the IndMoney app for family views.
 
 ---
 

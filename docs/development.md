@@ -6,8 +6,10 @@
 |------|---------|-------|
 | Python | 3.11+ | For mcp-gateway |
 | Node.js | 18+ | For daily-briefing-dashboard |
-| macOS Keychain | — | Token storage (macOS only) |
+| psutil | 5.6.2+ | For `getloadavg()` on Windows |
 | Google Cloud project | — | OAuth 2.0 credentials for Gmail / Calendar / Sheets |
+
+Token storage uses the OS credential store: **macOS Keychain**, **Windows Credential Manager**, or **Linux Secret Service** (via `keyring`).
 
 ---
 
@@ -16,12 +18,12 @@
 1. Go to [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials.
 2. Create an **OAuth 2.0 Client ID** (type: Web application).
 3. Add `http://127.0.0.1:8000/auth/callback` as an **Authorised redirect URI**.
-4. Enable these APIs on your project:
+4. Enable these APIs:
    - Gmail API
    - Google Calendar API
    - Google Drive API
    - Google Sheets API
-5. Copy the **Client ID** and **Client Secret** — you'll put them in `.env`.
+5. Copy the **Client ID** and **Client Secret** into `mcp-gateway/.env`.
 
 ---
 
@@ -34,11 +36,10 @@ cd mcp-gateway
 python mcp_gateway.py setup    # creates .venv, installs dependencies, copies .env.example → .env
 ```
 
-Edit `mcp-gateway/.env` and fill in your values (use `.env.example` as a reference — never paste real secrets into `.env.example`):
+Edit `mcp-gateway/.env`:
 ```
 GOOGLE_CLIENT_ID=<your-client-id>.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=<your-client-secret>
-# Optional: restrict CORS to the dashboard origin (default is http://localhost:8080)
 DASHBOARD_ORIGIN=http://localhost:8080
 ```
 
@@ -46,56 +47,37 @@ DASHBOARD_ORIGIN=http://localhost:8080
 
 ```bash
 python mcp_gateway.py start    # launches uvicorn at http://127.0.0.1:8000
-python mcp_gateway.py stop     # graceful shutdown
+python mcp_gateway.py stop
 ```
 
-Logs tail: `tail -f mcp-gateway/logs/gateway.log`
+Logs: `tail -f mcp-gateway/logs/gateway.log`
 
-### Google Authentication
+### Authenticate Google
 
-After starting the gateway, open the auth URL in a browser:
 ```bash
 open http://127.0.0.1:8000/auth/google
-```
-Or use the Settings → Google tab in the dashboard.
-
-You will see a Google consent screen. Grant all requested permissions (Gmail, Calendar, Drive, Sheets). The token is stored in macOS Keychain and never committed to git.
-
-To check auth status:
-```bash
-curl http://127.0.0.1:8000/auth/status
+# or: Settings → Google → Connect Google in the dashboard
 ```
 
-To disconnect:
-```bash
-curl -X DELETE http://127.0.0.1:8000/auth/token
-```
+Grant Gmail, Calendar, Drive, and Sheets permissions. Token is stored in the OS credential store.
 
-### Test a Tool
+### Connect IndMoney (optional)
 
-```bash
-# Health check
-curl http://127.0.0.1:8000/health
+Settings → IndMoney → Connect IndMoney. Completes OAuth 2.1 + PKCE in a popup window.
 
-# List available Google Sheets (requires auth)
-curl http://127.0.0.1:8000/config/sheets
-```
+### Configure Gmail blocked senders
+
+Settings → Gmail → add sender addresses or domains to hide from the inbox.
 
 ### Configure Stocks Sheet
 
-```bash
-# List your Drive spreadsheets
-curl http://127.0.0.1:8000/config/sheets
+Settings → Stocks → browse your Drive sheets and pick the portfolio spreadsheet.
 
-# Save the spreadsheet ID you want to use
+Or via curl:
+```bash
+curl http://127.0.0.1:8000/config/sheets
 curl -X POST http://127.0.0.1:8000/config/sheets/<SPREADSHEET_ID>
 ```
-
-Or use the Settings → Stocks tab in the dashboard.
-
-### Environment Variables
-
-See [`docs/architecture.md`](architecture.md#configuration-reference) for the full reference.
 
 ---
 
@@ -106,43 +88,39 @@ See [`docs/architecture.md`](architecture.md#configuration-reference) for the fu
 ```bash
 cd daily-briefing-dashboard
 npm install
-cp .env.example .env    # only needed if gateway is not on http://127.0.0.1:8000
+cp .env.example .env    # only if gateway is not on http://127.0.0.1:8000
 ```
-
-> **Note:** `npm run build` is handled automatically — `server.js` builds the React app into `dist/` on first start if it is not present. You only need to re-run `npm run build` manually after making changes to `src/`.
 
 ### Start / Stop (recommended)
 
-Use the unified stack script from the repo root:
-
 ```bash
-python scripts/start_dashboard.py start    # gateway first → dashboard
-python scripts/start_dashboard.py stop     # dashboard first → gateway
+python scripts/start_dashboard.py start    # gateway → dashboard
+python scripts/start_dashboard.py stop
 python scripts/start_dashboard.py restart
 python scripts/start_dashboard.py status
 ```
 
-Or start each service individually:
-
+Or individually:
 ```bash
-python daily_dashboard.py start    # dashboard only — launches at http://localhost:8080
-python daily_dashboard.py stop
+cd daily-briefing-dashboard
+npm run build
+node server.js
 ```
 
-The dashboard checks gateway reachability every 10 seconds. If the gateway was not running when the page loaded, cards that failed will automatically refresh once it comes online.
+Open [http://localhost:8080](http://localhost:8080).
 
 ### Settings Dialog
 
-Open the dashboard and click **Settings** (top-right):
-
 | Tab | What it does |
 |-----|-------------|
-| **Location** | Set your city for weather |
-| **Google** | Connect / disconnect Google OAuth (opens the gateway's `/auth/google`) |
-| **Stocks** | Browse your Drive spreadsheets and pick the portfolio sheet |
-| **IndMoney** | Connect / disconnect IndMoney via OAuth 2.1 + PKCE; set which tool to show on the card |
-| **AI** | Add/edit/delete LLM models for AI wish generation; test connection; set the active model |
-| **Layout** | Show/hide cards (Weather, Calendar, Celebrations, Net Worth, Stocks); layout adjusts automatically |
+| **Location** | Set your city for weather; set your **display name** for the personalised greeting ("Good Morning, Ritesh 👋") |
+| **Google** | Connect / disconnect Google OAuth |
+| **Stocks** | Browse Drive sheets and pick the portfolio sheet |
+| **IndMoney** | Connect IndMoney via OAuth 2.1 + PKCE; pick the display tool |
+| **Gmail** | Add/remove sender addresses or domains to hide from the inbox |
+| **AI** | Add LLM models for AI wish generation; set the active model |
+| **WhatsApp** | WhatsApp integration settings |
+| **Layout** | Show/hide dashboard cards; layout adjusts automatically |
 
 ---
 
@@ -150,27 +128,35 @@ Open the dashboard and click **Settings** (top-right):
 
 ```
 mcp-gateway/src/
-├── main.py                     # FastAPI + MCP server wiring
-│                               # Edit here to: add routes, register tools, change auth flow
+├── main.py                       # FastAPI + MCP server wiring; all auth flows
+│
+├── routers/
+│   ├── api.py                    # All /api/* REST endpoints (dashboard data)
+│   ├── tunnel.py                 # Cloudflare Tunnel management
+│   └── whatsapp.py               # WhatsApp webhook + message endpoints
 │
 ├── tools/
-│   ├── weather.py              # get_weather tool
-│   ├── gmail.py                # gmail_list_latest tool
-│   ├── calendar.py             # calendar_list_events tool
-│   ├── stocks.py               # get_stocks tool (reads Google Sheet)
-│   └── calculator.py           # calculate tool (sympy)
+│   ├── weather.py                # get_weather tool (wttr.in)
+│   ├── gmail.py                  # fetch_gmail_list(), fetch_gmail_message()
+│   ├── calendar.py               # calendar_list_events tool
+│   ├── stocks.py                 # get_stocks tool (reads Google Sheet)
+│   ├── calculator.py             # calculate tool (sympy)
+│   └── system.py                 # fetch_system_stats() — CPU, RAM, disk, network,
+│                                 # disk I/O, battery, uptime, load avg, CPU freq,
+│                                 # swap, top processes (all via psutil; cross-platform)
 │
 ├── services/
 │   ├── google_client_factory.py  # get_gmail_client(), get_sheets_client(), etc.
-│   └── google_auth.py            # ALL_SCOPES, get_google_credentials()
+│   ├── google_auth.py            # ALL_SCOPES, get_google_credentials()
+│   └── downstream/
+│       └── indmoney_client.py    # Proxies indmoney_* tools to mcp.indmoney.com
 │
 ├── auth/
 │   └── token_manager.py          # load_token(), refresh_token(), to/from_credentials()
 │
 ├── config/
-│   ├── settings.py               # pydantic-settings, _find_env_file()
+│   ├── settings.py               # pydantic-settings BaseSettings, _find_env_file()
 │   └── secrets.py                # keyring wrappers, update_env_setting()
-│                                 # store/clear functions also update in-memory settings object
 │
 └── utils/
     ├── errors.py                 # MCPError, AuthenticationError, ServiceError, ...
@@ -178,95 +164,156 @@ mcp-gateway/src/
     └── rate_limiter.py           # Token-bucket rate limiter
 
 daily-briefing-dashboard/
-├── server.js                   # Express server (port 8080); gateway proxy; LLM endpoints
-│
+├── server.js                     # Express (port 8080); proxies /api/* to gateway;
+│                                 # LLM wish endpoints
 └── src/
-    ├── App.jsx                 # Root component; bento grid; computeSpans(); card layout state
+    ├── App.jsx                   # Root; bento grid; computeSpans(); card visibility state
     │
     ├── components/
-    │   ├── BentoCard.jsx       # Shared card shell (glass border, header, skeleton, error)
-    │   ├── WeatherCard.jsx     # Weather + time-of-day animated backgrounds
-    │   ├── CalendarCard.jsx    # Today's schedule; 24h compact time (HH:MM–HH:MM)
-    │   ├── CelebrationsCard.jsx # Birthday/anniversary; AI wish generation; multi-event tabs
-    │   ├── IndMoneyCard.jsx    # Net worth / portfolio
-    │   ├── StocksCard.jsx      # Stock portfolio (Google Sheet)
-    │   ├── SettingsModal.jsx   # Location / Google / Stocks / IndMoney / AI / Layout tabs
-    │   ├── Header.jsx          # Refresh + Settings button
-    │   └── StatusPill.jsx      # MCP connection status indicator
+    │   ├── BentoCard.jsx         # Shared card shell (glass border, header, skeleton, error)
+    │   ├── Header.jsx            # Greeting + clock; reads user name from localStorage;
+    │   │                         # listens to 'dashboard-user-name-change' CustomEvent
+    │   ├── WeatherCard.jsx       # Weather + time-of-day animated backgrounds
+    │   ├── CalendarCard.jsx      # Today's schedule; 24h compact time (HH:MM–HH:MM)
+    │   ├── CelebrationsCard.jsx  # Birthday/anniversary; AI wish generation; multi-event tabs
+    │   ├── IndMoneyCard.jsx      # Net worth / portfolio; tabs: Overview / Performance /
+    │   │                         # SIPs (with MF + stock holdings fallback) / Family (static)
+    │   ├── StocksCard.jsx        # Stock portfolio; broker-wise donut (Dhan vs Zerodha);
+    │   │                         # profit/loss count pills; top gainer/loser; eye icon;
+    │   │                         # full popup with sortable table + broker tabs
+    │   ├── GmailCard.jsx         # Gmail inbox; top 5 on card; full inbox popup with
+    │   │                         # pagination; email detail popup
+    │   ├── WhatsAppCard.jsx      # WhatsApp messages via gateway
+    │   ├── SystemCard.jsx        # Live system gauges (CPU / RAM / Disk / Network /
+    │   │                         # Battery); uptime in footer; "Details →" popup with
+    │   │                         # load avg, CPU freq, swap, disk I/O, top 5 processes
+    │   ├── SettingsModal.jsx     # Settings dialog (8 tabs — see above)
+    │   └── StatusPill.jsx        # MCP connection status indicator
     │
     ├── hooks/
-    │   └── useDashboard.js     # Polling hook; fetch all card data; reconnect retry
+    │   ├── useDashboard.js       # Polling hook; fetches all card data; reconnect retry
+    │   └── useClock.js           # Live clock; greeting (Good Morning / Afternoon / Evening)
     │
     ├── data/
-    │   └── wishMessages.js     # Birthday/anniversary template messages (AI fallback)
+    │   └── wishMessages.js       # Birthday/anniversary template messages (AI fallback)
     │
     └── utils/
-        └── parsers.js          # parseCalendarEvents(); parseCelebrations(); formatTime() (24h)
+        └── parsers.js            # parseWeather(), parseCalendar(), parseStocks(),
+                                  # parseIndMoney(), parseCelebrations(), fmtCurrency(),
+                                  # fmtPct(), formatTime(), formatDate()
+```
+
+---
+
+## System Card — Adding New Metrics
+
+Metrics live in `mcp-gateway/src/tools/system.py`. The `fetch_system_stats()` function collects everything and returns a single JSON dict.
+
+To add a new metric:
+
+1. Write a private function `_my_metric() -> <type> | None` — return `None` on failure or if unavailable.
+2. Add it to the `return { ... }` in `fetch_system_stats()`.
+3. Add the display component in `SystemCard.jsx` — on the card face for high-visibility metrics, or inside `SystemDetailsPopup` for details.
+
+Delta-tracked rate metrics (like network and disk I/O) need module-level state:
+```python
+_last_foo = None
+_last_foo_ts: float = 0.0
+
+def _foo_rate() -> dict:
+    global _last_foo, _last_foo_ts
+    cur = psutil.foo_counters()
+    now = time.monotonic()
+    rate = None
+    if _last_foo is not None:
+        dt = now - _last_foo_ts
+        if dt > 0:
+            rate = max(0, round((cur.bytes - _last_foo.bytes) / dt))
+    _last_foo = cur
+    _last_foo_ts = now
+    return {"rate_bps": rate}
 ```
 
 ---
 
 ## AI Wish Generation
 
-The Celebrations card generates personalised birthday/anniversary messages using an LLM. Two configuration paths are supported:
-
 ### Option A — Browser-side key (per-user)
 
-1. Open dashboard → Settings → AI tab.
-2. Click **Add Model**, enter your provider (OpenAI / Anthropic / Custom), API key, and model name.
-3. Click **Set Active**. The key is stored in `localStorage` only — it never leaves the browser except as part of the wish-generation request to `/api/wishes/generate`.
-4. The same model can only be added once (duplicate provider + model is blocked).
+Settings → AI → Add Model. Key stored in `localStorage`; sent per-request to `/api/wishes/generate` and never persisted server-side.
 
-### Option B — Server-side key (shared / admin)
-
-Edit `daily-briefing-dashboard/.env`:
+### Option B — Server-side key (shared)
 
 ```
+# daily-briefing-dashboard/.env
 LLM_PROVIDER=openai
 LLM_API_KEY=<your-api-key>
 LLM_MODEL=gpt-4o-mini
 ```
 
-Restart the dashboard server. This is the fallback when no browser-side model is active.
-
-### Fallback chain
-
-`browser llmConfig` → `server .env LLM_API_KEY` → `wishMessages.js` template messages
-
-The response includes `source: 'ai' | 'none' | 'error'` so the UI shows the correct badge.
+Fallback chain: `browser llmConfig` → `server .env` → `wishMessages.js` templates
 
 ---
 
-## Adding a New Tool
+## Personalised Greeting
+
+The greeting "Good Morning, Ritesh 👋" is powered by:
+
+1. `SettingsModal.jsx` — Location tab has a "Your Name" field. On save:
+   - Writes to `localStorage['dashboard_user_name']`
+   - Dispatches `new CustomEvent('dashboard-user-name-change', { detail: name })`
+
+2. `Header.jsx` — reads the initial value from `localStorage` and listens to the custom event:
+   ```js
+   const [userName, setUserName] = useState(() => localStorage.getItem('dashboard_user_name') || '')
+   useEffect(() => {
+     window.addEventListener('dashboard-user-name-change', e => setUserName(e.detail))
+   }, [])
+   ```
+
+The name is **never sent to the server** — it stays in the browser.
+
+---
+
+## Adding a New Tool (backend)
 
 1. Create `src/tools/<name>.py`:
    ```python
    def handle_my_tool(param: str) -> str:
-       # call your API / do work
-       return "result text"
+       return "result"
    ```
 
-2. Register the tool in `src/main.py`:
+2. Register in `src/main.py`:
    ```python
-   # In _TOOLS list:
-   Tool(
-       name="my_tool",
-       description="What it does.",
-       inputSchema={
-           "type": "object",
-           "properties": {"param": {"type": "string"}},
-           "required": ["param"],
-       },
-   )
+   # _TOOLS list:
+   Tool(name="my_tool", description="...", inputSchema={...})
 
-   # In _dispatch():
+   # _dispatch():
    case "my_tool":
        return await asyncio.to_thread(handle_my_tool, args.get("param", ""))
    ```
 
-3. If the tool calls a synchronous API, wrap it with `asyncio.to_thread()` as shown above.
+3. Add a REST endpoint in `src/routers/api.py` if the dashboard needs to call it directly.
 
-That's it. Rate limiting and audit logging are applied automatically.
+Rate limiting and audit logging are applied automatically.
+
+---
+
+## Adding a New Dashboard Card
+
+1. Create `src/components/MyCard.jsx`. Follow the pattern of an existing card:
+   - Use `BentoCard` as the shell.
+   - Add a `createPortal` popup for details.
+   - Use `useMemo` for derived values, not inline calculations in JSX.
+
+2. Add a data fetch in `useDashboard.js`.
+
+3. Register the card in `App.jsx`:
+   - Add to `CARD_ORDER` array.
+   - Add to the `computeSpans()` row logic.
+   - Render `<MyCard />` in the grid.
+
+4. Add a toggle in `SettingsModal.jsx` → Layout tab.
 
 ---
 
@@ -283,9 +330,9 @@ All PRs target `main`. Commit messages follow Conventional Commits (`feat:`, `fi
 
 ## Security Notes
 
-- Never commit `.env` or any file with real credentials. `.env` is gitignored.
-- `.env.example` must contain only placeholder values — no real IDs, secrets, or tokens.
-- `GOOGLE_OAUTH_TOKEN`, `INDMONEY_CLIENT_ID`, `INDMONEY_CLIENT_SECRET`, `INDMONEY_OAUTH_TOKEN` in `.env` are written automatically by the gateway — safe to leave there but never commit.
-- `DASHBOARD_ORIGIN` must be set consistently in both `mcp-gateway/.env` and `daily-briefing-dashboard/.env` — the gateway enforces it for CORS and the IndMoney OAuth success page uses it for `postMessage`.
-- Before pushing, inspect `git diff origin/HEAD...HEAD` and confirm no secrets are present.
-- If a secret is accidentally committed, remove it from history immediately and rotate the credential — do not just delete the value in a new commit.
+- Never commit `.env` or any file with real credentials.
+- `.env.sample` must contain only placeholder values.
+- `GOOGLE_OAUTH_TOKEN`, `INDMONEY_*` tokens, and `GATEWAY_API_TOKEN` in `.env` are written automatically — safe to leave but never commit.
+- `DASHBOARD_ORIGIN` must match in both `.env` files — the gateway enforces it for CORS and for IndMoney's `postMessage` target.
+- Before pushing: `git diff origin/HEAD...HEAD` — confirm no secrets are visible.
+- If a secret is accidentally committed: remove it from history immediately and rotate the credential.

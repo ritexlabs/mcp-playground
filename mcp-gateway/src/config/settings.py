@@ -51,6 +51,11 @@ class Settings(BaseSettings):
     # daily-briefing-dashboard/.env as GATEWAY_API_TOKEN=<value>
     GATEWAY_API_TOKEN: str | None = None
 
+    # ── Gmail ──
+    GMAIL_BLOCKED_SENDERS: str = ""
+    # Comma-separated exact addresses or @domains to hide from Gmail card.
+    # Example: "noreply@github.com,@linkedin.com"
+
     # ── WhatsApp Business Cloud API ──
     WHATSAPP_ACCESS_TOKEN: str | None = None
     WHATSAPP_PHONE_NUMBER_ID: str | None = None

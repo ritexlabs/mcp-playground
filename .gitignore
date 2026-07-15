@@ -53,6 +53,9 @@ coverage/
 .coverage
 htmlcov/
 
+# Superpowers (AI brainstorming / planning artifacts — local only)
+docs/superpowers/
+
 # Misc
 .cache/
 .tmp/

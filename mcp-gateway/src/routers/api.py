@@ -15,7 +15,8 @@ from fastapi.responses import JSONResponse
 from ..config.secrets import update_env_setting
 from ..config.settings import settings
 from ..tools.calendar import handle_calendar_list_events
-from ..tools.gmail import handle_gmail_list_latest
+from ..tools.gmail import fetch_gmail_list, fetch_gmail_message, handle_gmail_list_latest
+from ..tools.system import fetch_system_stats
 from ..tools.stocks import handle_get_stocks
 from ..tools.weather import handle_get_weather
 from .tunnel import is_running as tunnel_running
@@ -53,10 +54,51 @@ async def calendar(daysAhead: int = 1, maxResults: int = 15):
     return {"content": [{"type": "text", "text": result}]}
 
 
+@router.get("/system")
+async def system_stats():
+    try:
+        result = await asyncio.to_thread(fetch_system_stats)
+        return result
+    except Exception as exc:
+        raise HTTPException(500, str(exc)) from exc
+
+
+@router.get("/gmail/config")
+async def gmail_config_get():
+    raw = settings.GMAIL_BLOCKED_SENDERS or ""
+    entries = [e.strip() for e in raw.split(",") if e.strip()]
+    return {"blockedSenders": entries}
+
+
+@router.post("/gmail/config")
+async def gmail_config_save(body: dict):
+    entries: list[str] = body.get("blockedSenders", [])
+    value = ",".join(e.strip() for e in entries if e.strip())
+    settings.GMAIL_BLOCKED_SENDERS = value
+    await asyncio.to_thread(update_env_setting, "GMAIL_BLOCKED_SENDERS", value)
+    return {"ok": True}
+
+
+@router.get("/gmail/message/{message_id}")
+async def gmail_message(message_id: str):
+    try:
+        msg = await asyncio.to_thread(fetch_gmail_message, message_id)
+        return msg
+    except Exception as exc:
+        raise HTTPException(500, str(exc)) from exc
+
+
 @router.get("/gmail")
-async def gmail(maxResults: int = 15):
-    result = await asyncio.to_thread(handle_gmail_list_latest, maxResults)
-    return {"content": [{"type": "text", "text": result}]}
+async def gmail(page: int = 1, pageSize: int = 20):
+    blocked_str = settings.GMAIL_BLOCKED_SENDERS or ""
+    blocked = [e.strip().lower() for e in blocked_str.split(",") if e.strip()]
+    page = max(1, page)
+    page_size = max(1, min(50, pageSize))
+    try:
+        result = await asyncio.to_thread(fetch_gmail_list, page_size, page, blocked)
+        return result
+    except Exception as exc:
+        raise HTTPException(500, str(exc)) from exc
 
 
 @router.get("/stocks")
@@ -122,10 +164,12 @@ async def indmoney_overview():
         except Exception:
             return {}
 
-    snapshot, stock_sips, mf_sips = await asyncio.gather(
+    snapshot, stock_sips, mf_sips, mf_holdings, stock_holdings = await asyncio.gather(
         _fetch("networth_snapshot"),
         _fetch("indian_stocks_sips"),
         _fetch("mf_sips"),
+        _fetch("networth_holdings", {"asset_type": "MF"}),
+        _fetch("networth_holdings", {"asset_type": "IND_STOCK"}),
     )
 
     if not snapshot:
@@ -136,10 +180,28 @@ async def indmoney_overview():
                 return JSONResponse({"auth_required": True, "error": "IndMoney session expired"}, status_code=401)
 
     return {
-        "snapshot":   snapshot,
-        "stock_sips": stock_sips.get("indian_stocks_sips", []),
-        "mf_sips":    mf_sips.get("mf_sips", []),
+        "snapshot":       snapshot,
+        "stock_sips":     stock_sips.get("indian_stocks_sips", []),
+        "mf_sips":        mf_sips.get("mf_sips", []),
+        "mf_holdings":    mf_holdings.get("holdings", []),
+        "stock_holdings": stock_holdings.get("holdings", []),
     }
+
+
+@router.get("/indmoney/family")
+async def indmoney_family():
+    from ..services.downstream.indmoney_client import call_tool
+
+    async def _fetch(tool: str, args: dict = {}):
+        try:
+            content = await call_tool(f"indmoney_{tool}", args)
+            text    = "\n".join(c.text for c in content if hasattr(c, "text"))
+            return json.loads(text) if text.strip() else {}
+        except Exception:
+            return {}
+
+    holdings = await _fetch("networth_holdings")
+    return {"holdings": holdings}
 
 
 # ── Gateway API token management ──────────────────────────────────────────────

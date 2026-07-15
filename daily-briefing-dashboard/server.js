@@ -205,6 +205,14 @@ app.get("/api/celebrations", (req, res) => _proxy(req, res, "/api/celebrations")
 app.get("/api/indmoney",          (req, res) => _proxy(req, res, "/api/indmoney"));
 app.get("/api/indmoney/overview", (req, res) => _proxy(req, res, "/api/indmoney/overview"));
 
+// System stats
+app.get("/api/system", (req, res) => _proxy(req, res, "/api/system"));
+
+// Gmail
+app.get("/api/gmail/message/:id",  (req, res) => _proxy(req, res, `/api/gmail/message/${req.params.id}`));
+app.get("/api/gmail/config",       (req, res) => _proxy(req, res, "/api/gmail/config"));
+app.post("/api/gmail/config",      (req, res) => _proxy(req, res, "/api/gmail/config", "POST", JSON.stringify(req.body)));
+
 // WhatsApp
 app.get("/api/whatsapp/status",       (req, res) => _proxy(req, res, "/api/whatsapp/status"));
 app.get("/api/whatsapp/messages",     (req, res) => _proxy(req, res, "/api/whatsapp/messages"));

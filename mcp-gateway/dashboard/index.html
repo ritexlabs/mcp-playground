@@ -234,6 +234,8 @@
     <button data-tab="stocks">Stocks</button>
     <button data-tab="indmoney">IndMoney</button>
     <button data-tab="whatsapp">WhatsApp</button>
+    <button data-tab="gmail">Gmail</button>
+    <button data-tab="system">System</button>
     <button data-tab="tunnel">Tunnel</button>
     <button data-tab="token">API Token</button>
   </nav>
@@ -536,6 +538,112 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- GMAIL TAB -->
+  <div class="tab-panel" id="tab-gmail">
+    <div class="card">
+      <div class="card-title">Gmail — Blocked Senders</div>
+      <p style="color:var(--muted);margin-bottom:14px;font-size:13px;">
+        Emails from these addresses or domains are hidden from the Gmail card and inbox on the daily dashboard.
+        Uses the existing Google connection — no extra credentials needed.
+      </p>
+
+      <div class="field">
+        <label>Add Address or Domain</label>
+        <div style="display:flex;gap:8px">
+          <input id="gmail-input" type="text" placeholder="noreply@example.com or @github.com"
+            onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();gmailAddEntry()}">
+          <button class="btn btn-secondary" onclick="gmailAddEntry()" style="white-space:nowrap;flex-shrink:0">Add</button>
+        </div>
+        <span class="hint">Exact address: <code style="font-size:10px">noreply@example.com</code> &nbsp;·&nbsp; Full domain: <code style="font-size:10px">@github.com</code> (blocks all senders from that domain)</span>
+      </div>
+
+      <div id="gmail-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;min-height:28px"></div>
+      <div id="gmail-empty" style="font-size:12px;color:var(--dim);margin-bottom:14px">No senders blocked yet.</div>
+
+      <div id="gmail-msg" class="msg" style="margin-bottom:8px"></div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="loadGmailConfig()">Refresh</button>
+        <button class="btn btn-primary" onclick="saveGmailConfig()">Save</button>
+      </div>
+      <p class="hint" style="margin-top:12px">Changes take effect on the next Gmail card refresh (auto-refreshes every 10 seconds on the daily dashboard).</p>
+    </div>
+  </div>
+
+  <!-- SYSTEM TAB -->
+  <div class="tab-panel" id="tab-system">
+    <div class="card">
+      <div class="card-title">Host System Stats</div>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:16px;">
+        Live metrics from the host running the MCP Gateway — read directly via <code style="font-size:11px;color:var(--blue)">psutil</code>.
+        No credentials or external connection needed.
+      </p>
+
+      <!-- OS info row -->
+      <div id="sys-os-row" class="status-row s-dim" style="margin-bottom:16px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);flex-shrink:0">
+          <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+        </svg>
+        <div style="flex:1;min-width:0">
+          <div id="sys-os-name" class="status-label" style="font-size:13px">—</div>
+          <div id="sys-os-detail" style="font-size:11px;color:var(--dim);margin-top:2px">Loading…</div>
+        </div>
+        <span id="sys-os-arch" style="font-size:10px;padding:2px 8px;border-radius:6px;background:rgba(96,165,250,.1);color:var(--blue);font-family:monospace;flex-shrink:0"></span>
+      </div>
+
+      <!-- Gauges -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:16px">
+
+        <div class="status-row s-dim" id="sys-cpu-row" style="flex-direction:column;align-items:stretch;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:12px;color:var(--muted);font-weight:600">CPU</span>
+            <span id="sys-cpu-pct" style="font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)">—%</span>
+          </div>
+          <div style="height:5px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden">
+            <div id="sys-cpu-bar" style="height:100%;border-radius:99px;background:var(--green);width:0%;transition:width .6s,background .3s"></div>
+          </div>
+          <div id="sys-cpu-sub" style="font-size:11px;color:var(--dim)"></div>
+        </div>
+
+        <div class="status-row s-dim" id="sys-ram-row" style="flex-direction:column;align-items:stretch;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:12px;color:var(--muted);font-weight:600">Memory</span>
+            <span id="sys-ram-pct" style="font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)">—%</span>
+          </div>
+          <div style="height:5px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden">
+            <div id="sys-ram-bar" style="height:100%;border-radius:99px;background:var(--green);width:0%;transition:width .6s,background .3s"></div>
+          </div>
+          <div id="sys-ram-sub" style="font-size:11px;color:var(--dim)"></div>
+        </div>
+
+        <div class="status-row s-dim" id="sys-disk-row" style="flex-direction:column;align-items:stretch;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:12px;color:var(--muted);font-weight:600">Disk</span>
+            <span id="sys-disk-pct" style="font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)">—%</span>
+          </div>
+          <div style="height:5px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden">
+            <div id="sys-disk-bar" style="height:100%;border-radius:99px;background:var(--green);width:0%;transition:width .6s,background .3s"></div>
+          </div>
+          <div id="sys-disk-sub" style="font-size:11px;color:var(--dim)"></div>
+        </div>
+
+        <div class="status-row s-dim" id="sys-temp-row" style="flex-direction:column;align-items:stretch;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:12px;color:var(--muted);font-weight:600">Temperature</span>
+            <span id="sys-temp-val" style="font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted)">—</span>
+          </div>
+          <div id="sys-temp-note" style="font-size:11px;color:var(--dim)">Sensor data unavailable on this OS</div>
+        </div>
+
+      </div>
+
+      <div id="sys-msg" class="msg" style="margin-bottom:8px"></div>
+      <div class="actions">
+        <span id="sys-updated" style="font-size:11px;color:var(--dim);flex:1;align-self:center"></span>
+        <button class="btn btn-secondary" onclick="loadSystemStats()">Refresh</button>
+      </div>
     </div>
   </div>
 
@@ -1172,6 +1280,153 @@ async function rotateToken() {
   }
 }
 
+// ── Gmail tab ─────────────────────────────────────────────────────────────────
+let _gmailBlocked = [];
+
+async function loadGmailConfig() {
+  const d = await api('/api/gmail/config');
+  _gmailBlocked = d.blockedSenders || [];
+  renderGmailChips();
+}
+
+function renderGmailChips() {
+  const container = document.getElementById('gmail-chips');
+  const empty     = document.getElementById('gmail-empty');
+  if (_gmailBlocked.length === 0) {
+    container.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  container.innerHTML = '';
+  _gmailBlocked.forEach((entry, i) => {
+    const chip = document.createElement('span');
+    chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;' +
+      'background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.25);' +
+      'font-size:12px;color:#93c5fd';
+
+    chip.appendChild(document.createTextNode(entry));
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.style.cssText = 'background:none;border:none;cursor:pointer;color:#93c5fd;opacity:.7;font-size:14px;' +
+      'line-height:1;padding:0;display:flex;align-items:center';
+    btn.setAttribute('aria-label', `Remove ${entry}`);
+    btn.textContent = '×';
+    btn.addEventListener('click', () => gmailRemoveEntry(i));
+
+    chip.appendChild(btn);
+    container.appendChild(chip);
+  });
+}
+
+function gmailAddEntry() {
+  const input = document.getElementById('gmail-input');
+  const v = input.value.trim().toLowerCase();
+  if (!v || _gmailBlocked.includes(v)) { input.value = ''; return; }
+  _gmailBlocked = [..._gmailBlocked, v];
+  input.value = '';
+  renderGmailChips();
+}
+
+function gmailRemoveEntry(index) {
+  _gmailBlocked = _gmailBlocked.filter((_, i) => i !== index);
+  renderGmailChips();
+}
+
+async function saveGmailConfig() {
+  const msg = document.getElementById('gmail-msg');
+  msg.textContent = 'Saving…'; msg.className = 'msg';
+  const d = await api('/api/gmail/config', {
+    method: 'POST',
+    body: JSON.stringify({ blockedSenders: _gmailBlocked }),
+  });
+  if (d.ok) {
+    msg.textContent = '✓ Saved — takes effect on next card refresh';
+    msg.className   = 'msg msg-ok';
+  } else {
+    msg.textContent = '✗ ' + (d.error || d.detail || 'Save failed');
+    msg.className   = 'msg msg-err';
+  }
+}
+
+// ── System Stats ──────────────────────────────────────────────────────────────
+
+function _gaugeColor(pct) {
+  if (pct >= 85) return 'var(--red)';
+  if (pct >= 65) return 'var(--amber)';
+  return 'var(--green)';
+}
+
+function _tempColor(c) {
+  if (c >= 85) return 'var(--red)';
+  if (c >= 65) return 'var(--amber)';
+  return 'var(--green)';
+}
+
+async function loadSystemStats() {
+  const msg = document.getElementById('sys-msg');
+  msg.textContent = '';
+  try {
+    const d = await api('/api/system');
+    if (d.error) throw new Error(d.error);
+
+    // OS row
+    const os = d.os || {};
+    document.getElementById('sys-os-name').textContent   = os.os      || 'Unknown';
+    document.getElementById('sys-os-detail').textContent = 'Version ' + (os.version || '—');
+    document.getElementById('sys-os-arch').textContent   = os.arch    || '';
+
+    // CPU
+    const cpu = d.cpu || {};
+    const cpuPct = cpu.percent ?? 0;
+    const cpuColor = _gaugeColor(cpuPct);
+    document.getElementById('sys-cpu-pct').textContent       = cpuPct + '%';
+    document.getElementById('sys-cpu-pct').style.color       = cpuColor;
+    document.getElementById('sys-cpu-bar').style.width       = Math.min(cpuPct, 100) + '%';
+    document.getElementById('sys-cpu-bar').style.background  = cpuColor;
+    document.getElementById('sys-cpu-sub').textContent       = cpu.cores ? cpu.cores + ' logical cores' + (cpu.physical ? ' (' + cpu.physical + ' physical)' : '') : '';
+
+    // RAM
+    const ram = d.ram || {};
+    const ramPct = ram.percent ?? 0;
+    const ramColor = _gaugeColor(ramPct);
+    document.getElementById('sys-ram-pct').textContent       = ramPct + '%';
+    document.getElementById('sys-ram-pct').style.color       = ramColor;
+    document.getElementById('sys-ram-bar').style.width       = Math.min(ramPct, 100) + '%';
+    document.getElementById('sys-ram-bar').style.background  = ramColor;
+    document.getElementById('sys-ram-sub').textContent       = ram.used_gb != null ? ram.used_gb + ' / ' + ram.total_gb + ' GB' : '';
+
+    // Disk
+    const disk = d.disk || {};
+    const diskPct = disk.percent ?? 0;
+    const diskColor = _gaugeColor(diskPct);
+    document.getElementById('sys-disk-pct').textContent      = diskPct + '%';
+    document.getElementById('sys-disk-pct').style.color      = diskColor;
+    document.getElementById('sys-disk-bar').style.width      = Math.min(diskPct, 100) + '%';
+    document.getElementById('sys-disk-bar').style.background = diskColor;
+    document.getElementById('sys-disk-sub').textContent      = disk.used_gb != null ? disk.used_gb + ' / ' + disk.total_gb + ' GB' : '';
+
+    // Temperature
+    const temp = d.temperature ?? null;
+    if (temp != null) {
+      const tColor = _tempColor(temp);
+      document.getElementById('sys-temp-val').textContent  = temp + '°C';
+      document.getElementById('sys-temp-val').style.color  = tColor;
+      document.getElementById('sys-temp-note').textContent = '';
+    } else {
+      document.getElementById('sys-temp-val').textContent  = '—';
+      document.getElementById('sys-temp-val').style.color  = 'var(--dim)';
+      document.getElementById('sys-temp-note').textContent = 'Sensor data unavailable on this OS';
+    }
+
+    document.getElementById('sys-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    msg.textContent = '✗ ' + e.message;
+    msg.className   = 'msg msg-err';
+  }
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 (async function init() {
   await Promise.all([
@@ -1180,6 +1435,8 @@ async function rotateToken() {
     loadStocksStatus(),
     loadIndMoneyStatus(),
     loadWaStatus(),
+    loadGmailConfig(),
+    loadSystemStats(),
     loadTunnelStatus(),
     loadToken(),
   ]);
