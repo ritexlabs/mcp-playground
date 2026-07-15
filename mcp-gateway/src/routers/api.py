@@ -16,6 +16,7 @@ from ..config.secrets import update_env_setting
 from ..config.settings import settings
 from ..tools.calendar import handle_calendar_list_events
 from ..tools.gmail import fetch_gmail_list, fetch_gmail_message, handle_gmail_list_latest
+from ..tools.indices import fetch_indices
 from ..tools.system import fetch_system_stats
 from ..tools.stocks import handle_get_stocks
 from ..tools.weather import handle_get_weather
@@ -124,6 +125,12 @@ async def stocks(symbols: str = ""):
     sym_list = [s.strip() for s in symbols.split(",") if s.strip()] or None
     result   = await asyncio.to_thread(handle_get_stocks, sym_list)
     return {"content": [{"type": "text", "text": result}]}
+
+
+@router.get("/indices")
+async def market_indices():
+    """Live NIFTY 50, BANKNIFTY, SENSEX from Yahoo Finance (no API key needed)."""
+    return await fetch_indices()
 
 
 @router.get("/celebrations")

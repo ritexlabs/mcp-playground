@@ -289,6 +289,58 @@ function CompactStocksDonut({ brokerTotals, totals }) {
   )
 }
 
+// ─── Market indices strip ─────────────────────────────────────────────────────
+
+const IDX_SHORT = { 'NIFTY 50': 'NIFTY', 'BANKNIFTY': 'BANK N', 'SENSEX': 'SENSEX' }
+
+function fmtIdx(n) {
+  if (n == null) return '--'
+  return n.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+}
+
+function IndicesStrip({ indices, loading }) {
+  if (loading && !indices?.length) {
+    return (
+      <div className="flex flex-col gap-1.5 pb-3 mb-3 border-b border-white/[0.06]">
+        {[70, 85, 78].map((w, i) => (
+          <div key={i} className="skeleton h-3.5 rounded" style={{ width: `${w}%` }} />
+        ))}
+      </div>
+    )
+  }
+  if (!indices?.length) return null
+
+  return (
+    <div className="flex flex-col pb-3 mb-3 border-b border-white/[0.06]">
+      {indices.map(idx => {
+        const up  = idx.change >= 0
+        const clr = up ? '#34d399' : '#fb7185'
+        const pts = idx.change != null
+          ? (up ? '+' : '') + idx.change.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          : '--'
+        return (
+          <div key={idx.label} className="flex items-center gap-1 py-0.5">
+            <span className="text-[10px] font-bold text-slate-500 w-[46px] flex-shrink-0">
+              {IDX_SHORT[idx.label] || idx.label}
+            </span>
+            <span className="text-[11px] font-mono tabular-nums text-slate-200 w-[60px] flex-shrink-0">
+              {fmtIdx(idx.price)}
+            </span>
+            <span style={{ color: clr, fontSize: 8 }} className="flex-shrink-0">{up ? '▲' : '▼'}</span>
+            <span className="text-[10px] font-mono tabular-nums flex-shrink-0" style={{ color: clr }}>
+              {pts}
+            </span>
+            <span className="text-[10px] font-mono tabular-nums font-semibold flex-shrink-0 ml-auto" style={{ color: clr }}>
+              ({up ? '+' : ''}{idx.changePct?.toFixed(2)}%)
+            </span>
+          </div>
+        )
+      })}
+      <p className="text-[9px] text-slate-700 mt-1">Live · NSE / BSE</p>
+    </div>
+  )
+}
+
 // ─── Eye icon SVGs ────────────────────────────────────────────────────────────
 
 function EyeOpen({ size = 13 }) {
@@ -310,7 +362,7 @@ function EyeOff({ size = 13 }) {
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-export default function StocksCard({ data, loading, error, onRetry, onRefresh, delay = 0, syncedAt }) {
+export default function StocksCard({ data, loading, error, indices, indicesLoading, onRetry, onRefresh, delay = 0, syncedAt }) {
   const [popupOpen, setPopupOpen] = useState(false)
   const [hidden,    setHidden]    = useState(false)
 
@@ -395,6 +447,8 @@ export default function StocksCard({ data, loading, error, onRetry, onRefresh, d
               </div>
             )}
           </CardHeader>
+
+          <IndicesStrip indices={indices} loading={indicesLoading} />
 
           {loading && <CardSkeleton rows={4} />}
           {!loading && error && <CardError message={error} onRetry={onRetry} />}

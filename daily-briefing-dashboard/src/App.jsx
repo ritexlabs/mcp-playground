@@ -18,29 +18,29 @@ import { loadTasks, saveTasks, loadAlarmConfig } from './utils/alarmUtils.js'
 // ── Card catalogue ────────────────────────────────────────────────────────────
 
 export const CARD_DEFS = [
-  { id: 'weather',      label: 'Weather',        icon: '🌤️' },
-  { id: 'indmoney',     label: 'Net Worth',       icon: '💰' },
-  { id: 'system',       label: 'System Stats',    icon: '💻' },
-  { id: 'gmail',        label: 'Gmail',           icon: '✉️'  },
-  { id: 'calendar',     label: 'Schedule',        icon: '📅' },
-  { id: 'celebrations', label: 'Celebrations',    icon: '🎉' },
-  { id: 'whatsapp',     label: 'WhatsApp',        icon: '💬' },
-  { id: 'stocks',       label: 'Stock Portfolio', icon: '📈' },
-  { id: 'notes',        label: 'Quick Notes',     icon: '📝' },
+  { id: 'weather',      label: 'Weather',             icon: '🌤️' },
+  { id: 'notes',        label: 'Tasks & Reminders',   icon: '📝' },
+  { id: 'system',       label: 'System Stats',        icon: '💻' },
+  { id: 'gmail',        label: 'Gmail',               icon: '✉️'  },
+  { id: 'calendar',     label: 'Schedule',            icon: '📅' },
+  { id: 'celebrations', label: 'Celebrations',        icon: '🎉' },
+  { id: 'whatsapp',     label: 'WhatsApp',            icon: '💬' },
+  { id: 'stocks',       label: 'Stock Portfolio',     icon: '📈' },
+  { id: 'indmoney',     label: 'Net Worth',           icon: '💰' },
 ]
 
 // Fixed display order — never changes, only visibility is user-controlled
 const FIXED_ORDER = CARD_DEFS.map(c => c.id)
 
-// Row 1: Weather · Net Worth · System (top priorities — always visible first)
-// Row 2: Gmail · Schedule · Celebrations (communication + events)
-// Row 3: WhatsApp · Stocks (secondary)
+// Row 1: Weather · Tasks & Reminders · System
+// Row 2: Gmail · Schedule · Celebrations
+// Row 3: WhatsApp · Stocks · Net Worth
 function computeSpans(visible) {
   const has = id => visible.includes(id)
   const spans = {}
 
-  // Row 1 — Weather · IndMoney · System as equal-width trio
-  const row1 = ['weather', 'indmoney', 'system'].filter(has)
+  // Row 1 — Weather · Tasks & Reminders · System
+  const row1 = ['weather', 'notes', 'system'].filter(has)
   if (row1.length === 3) {
     row1.forEach(id => { spans[id] = 'col-span-12 md:col-span-4' })
   } else if (row1.length === 2) {
@@ -59,8 +59,8 @@ function computeSpans(visible) {
     row2.forEach(id => { spans[id] = 'col-span-12' })
   }
 
-  // Row 3 — WhatsApp · Stocks · Notes
-  const row3 = ['whatsapp', 'stocks', 'notes'].filter(has)
+  // Row 3 — WhatsApp · Stocks · Net Worth
+  const row3 = ['whatsapp', 'stocks', 'indmoney'].filter(has)
   if (row3.length === 3) {
     row3.forEach(id => { spans[id] = 'col-span-12 md:col-span-4' })
   } else if (row3.length === 2) {
@@ -209,6 +209,7 @@ export default function App() {
                 {id === 'stocks' && (
                   <StocksCard
                     data={data.stocks} loading={loading.stocks} error={errors.stocks}
+                    indices={data.indices} indicesLoading={loading.indices}
                     onRetry={() => actions.refreshCard('stocks')}
                     onRefresh={() => actions.refreshCard('stocks')}
                     delay={delay}

@@ -206,7 +206,10 @@ app.get("/api/indmoney",          (req, res) => _proxy(req, res, "/api/indmoney"
 app.get("/api/indmoney/overview", (req, res) => _proxy(req, res, "/api/indmoney/overview"));
 
 // System stats
-app.get("/api/system", (req, res) => _proxy(req, res, "/api/system"));
+app.get("/api/system",  (req, res) => _proxy(req, res, "/api/system"));
+
+// Market indices
+app.get("/api/indices", (req, res) => _proxy(req, res, "/api/indices"));
 
 // Gmail
 app.get("/api/gmail/message/:id",  (req, res) => _proxy(req, res, `/api/gmail/message/${req.params.id}`));

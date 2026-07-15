@@ -114,12 +114,9 @@ Open [http://localhost:8080](http://localhost:8080).
 | Tab | What it does |
 |-----|-------------|
 | **Location** | Set your city for weather; set your **display name** for the personalised greeting ("Good Morning, Ritesh 👋") |
-| **Google** | Connect / disconnect Google OAuth |
-| **Stocks** | Browse Drive sheets and pick the portfolio sheet |
-| **IndMoney** | Connect IndMoney via OAuth 2.1 + PKCE; pick the display tool |
-| **Gmail** | Add/remove sender addresses or domains to hide from the inbox |
+| **Gateway** | View MCP gateway connection status and URL; open the gateway dashboard |
 | **AI** | Add LLM models for AI wish generation; set the active model |
-| **WhatsApp** | WhatsApp integration settings |
+| **Notes** | Configure task alarm behaviour: animation style (Bounce / Confetti / Fireworks / Wave / Shake), ringtone (Chime / Bell / Beep / Alarm — each with a ▶ preview), and snooze duration (5 / 10 / 15 min). All stored in `localStorage` only. |
 | **Layout** | Show/hide dashboard cards; layout adjusts automatically |
 
 ### MCP Gateway Dashboard (`http://127.0.0.1:8000/dashboard`)
@@ -187,7 +184,8 @@ daily-briefing-dashboard/
     │   ├── BentoCard.jsx         # Shared card shell (glass border, header, skeleton, error)
     │   ├── Header.jsx            # Greeting + clock; reads user name from localStorage;
     │   │                         # listens to 'dashboard-user-name-change' CustomEvent
-    │   ├── WeatherCard.jsx       # Weather + time-of-day animated backgrounds
+    │   ├── WeatherCard.jsx       # Weather + AQI pill + 5-day forecast strip;
+    │   │                         # time-of-day animated backgrounds
     │   ├── CalendarCard.jsx      # Today's schedule; 24h compact time (HH:MM–HH:MM)
     │   ├── CelebrationsCard.jsx  # Birthday/anniversary; AI wish generation; multi-event tabs
     │   ├── IndMoneyCard.jsx      # Net worth / portfolio; tabs: Overview / Performance /
@@ -201,7 +199,13 @@ daily-briefing-dashboard/
     │   ├── SystemCard.jsx        # Live system gauges (CPU / RAM / Disk / Network /
     │   │                         # Battery); uptime in footer; "Details →" popup with
     │   │                         # load avg, CPU freq, swap, disk I/O, top 5 processes
-    │   ├── SettingsModal.jsx     # Settings dialog (8 tabs — see above)
+    │   ├── QuickNotesCard.jsx    # Task checklist: add/mark-done/delete tasks; per-task
+    │   │                         # alarm picker (datetime-local inline); pending count badge;
+    │   │                         # listens to 'tasks-updated' CustomEvent for snooze/dismiss sync
+    │   ├── AlarmNotification.jsx # Full-screen portal alarm overlay; CSS animations
+    │   │                         # (Bounce/Confetti/Fireworks/Wave/Shake); Web Audio ringtone;
+    │   │                         # Snooze + Dismiss buttons; plays sound on mount
+    │   ├── SettingsModal.jsx     # Settings dialog (Location / Gateway / AI / Notes / Layout)
     │   └── StatusPill.jsx        # MCP connection status indicator
     │
     ├── hooks/
@@ -212,9 +216,11 @@ daily-briefing-dashboard/
     │   └── wishMessages.js       # Birthday/anniversary template messages (AI fallback)
     │
     └── utils/
-        └── parsers.js            # parseWeather(), parseCalendar(), parseStocks(),
-                                  # parseIndMoney(), parseCelebrations(), fmtCurrency(),
-                                  # fmtPct(), formatTime(), formatDate()
+        ├── parsers.js            # parseWeather(), parseCalendar(), parseStocks(),
+        │                         # parseIndMoney(), parseCelebrations(), fmtCurrency(),
+        │                         # fmtPct(), formatTime(), formatDate()
+        └── alarmUtils.js         # loadTasks/saveTasks, loadAlarmConfig/saveAlarmConfig,
+                                  # playAlarmSound(ringtone), genId()
 ```
 
 ---
@@ -310,6 +316,60 @@ The name is **never sent to the server** — it stays in the browser.
 3. Add a REST endpoint in `src/routers/api.py` if the dashboard needs to call it directly.
 
 Rate limiting and audit logging are applied automatically.
+
+---
+
+## Long-Running Dashboard Performance
+
+The dashboard is designed to run continuously in a browser tab for 24+ hours without accumulating memory or CPU load.
+
+### What keeps it safe
+
+| Concern | Mechanism |
+|---------|-----------|
+| **Stale / piled-up fetch requests** | Each card has a dedicated `AbortController`. Starting a new fetch immediately cancels any prior in-flight request for that card, so only one request per card is ever pending at a time. |
+| **Hanging requests** | Every data fetch carries a 20-second hard timeout via the `AbortController`. If the gateway doesn't respond in 20 s, the request is aborted and the error state triggers the backoff logic. |
+| **Persistent-error thrashing** | Errored cards are retried with exponential backoff: attempts 1–3 retry on the next 10 s poll, attempts 4–8 back off to 60 s, and attempt 9+ back off to 5 minutes. A card that fails all day makes at most ~70 requests instead of 8,640. |
+| **Hidden-tab waste** | Both polling intervals (10 s status/retry + 5 min indices) are stored in refs so the `visibilitychange` handler can clear them when the tab is hidden and restart them on focus. |
+| **Unmount leaks** | `useEffect` cleanup aborts all in-flight requests and clears all intervals, so no callbacks fire after the component unmounts. |
+| **Web Audio accumulation** | `playAlarmSound` schedules `AudioContext.close()` after all oscillator notes finish. Browsers allow roughly 6 open `AudioContext`s; forgetting to close them triggers a browser warning and eventually silences new ones. |
+
+### Polling schedule
+
+| Source | Interval | Notes |
+|--------|----------|-------|
+| Status check + errored-card retry | 10 s | Only retries cards in error state and past their backoff window |
+| Market indices (NIFTY / BANKNIFTY / SENSEX) | 5 min | Separate interval; paused when tab is hidden |
+| Alarm check | 10 s (in `App.jsx`) | Reads `localStorage` only; no network |
+
+---
+
+## Tasks & Reminders Alarms
+
+The **Tasks & Reminders** card (Row 1, centre) is a browser-only feature — no backend involved.
+
+**Data model** (stored in `localStorage['dashboard_tasks']`):
+```json
+[
+  { "id": "abc123", "text": "Review PR", "done": false, "alarm": "2026-07-16T09:00:00.000Z" },
+  { "id": "def456", "text": "Call dentist", "done": true,  "alarm": null }
+]
+```
+
+**Alarm flow:**
+1. `App.jsx` runs `setInterval` every 10 seconds.
+2. Finds the first task where `!done && alarm && new Date(alarm) <= now`.
+3. Sets `alarmTask` state → renders `<AlarmNotification>` portal over the whole page.
+4. Notification plays a Web Audio ringtone and shows the configured CSS animation.
+5. **Snooze**: reschedules `task.alarm = now + snooze_minutes`, dispatches `tasks-updated`.
+6. **Dismiss**: clears `task.alarm = null`, dispatches `tasks-updated`.
+7. `QuickNotesCard` listens to `tasks-updated` and reloads from `localStorage`.
+
+**Alarm config** (stored in `localStorage['dashboard_alarm_config']`):
+```json
+{ "animation": "bounce", "ringtone": "chime", "snooze": 5 }
+```
+Change via **Settings → Notes**. Dispatches `alarm-config-changed` CustomEvent so `App.jsx` picks up the new config immediately without a page reload.
 
 ---
 

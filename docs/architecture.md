@@ -98,14 +98,13 @@ The `daily-briefing-dashboard` is one frontend built on this gateway. Claude Des
 The bento grid uses a 12-column layout. Cards occupy fixed rows:
 
 ```
-Row 1  [  Weather (4)  ]  [  Net Worth (4)  ]  [  System (4)  ]
-Row 2  [   Gmail (4)   ]  [  Calendar (4)   ]  [ Celebrations(4)]
-Row 3  [    WhatsApp (6)    ]  [    Stocks (6)    ]
+Row 1  [  Weather (4)  ]  [ Tasks & Reminders (4) ]  [  System (4)  ]
+Row 2  [   Gmail (4)   ]  [    Calendar (4)        ]  [ Celebrations(4)]
+Row 3  [ WhatsApp (4)  ]  [     Stocks (4)         ]  [ Net Worth (4) ]
 ```
 
 Cards in each row shrink/expand when siblings are hidden:
 - Trio row (3 cards): each `col-span-4`. Two visible → `col-span-6`. One visible → `col-span-12`.
-- Pair row (2 cards): each `col-span-6`. One visible → `col-span-12`.
 
 Card visibility is user-controlled via **Settings → Layout** and stored in `localStorage`.
 
@@ -149,14 +148,17 @@ Card visibility is user-controlled via **Settings → Layout** and stored in `lo
 | `src/components/CalendarCard.jsx` | Today's schedule; 24h compact time format |
 | `src/components/CelebrationsCard.jsx` | Birthday/anniversary; AI wish generation; multi-event tab UI |
 | `src/components/IndMoneyCard.jsx` | Net worth / IndMoney portfolio; tabs: Overview / Performance / SIPs / Family |
-| `src/components/StocksCard.jsx` | Stock portfolio; broker-wise donut (Dhan vs Zerodha); eye icon; profit/loss count; top gainer/loser |
+| `src/components/StocksCard.jsx` | Stock portfolio; broker-wise donut (Dhan vs Zerodha); eye icon; profit/loss count; top gainer/loser; **IndicesStrip** showing live NIFTY 50 / BANKNIFTY / SENSEX with price, point change, and % change |
 | `src/components/GmailCard.jsx` | Gmail inbox; top 5 on card face; full inbox popup with pagination; email detail popup |
 | `src/components/WhatsAppCard.jsx` | WhatsApp messages via gateway |
 | `src/components/SystemCard.jsx` | Live system metrics (CPU/RAM/Disk/Network/Battery gauges); uptime; "Details →" popup with load avg, CPU freq, swap, disk I/O, top processes |
-| `src/components/SettingsModal.jsx` | Settings dialog: Location (+ user name) / Google / Stocks / IndMoney / Gmail / AI / WhatsApp / Layout tabs |
-| `src/hooks/useDashboard.js` | Polling hook: fetches all card data, MCP status, retry on reconnect |
+| `src/components/QuickNotesCard.jsx` | Task checklist: add tasks, mark done, delete; per-task alarm picker; pending count badge; "Clear completed" shortcut; listens to `tasks-updated` event to stay in sync with snooze/dismiss |
+| `src/components/AlarmNotification.jsx` | Full-screen alarm overlay (portal to `document.body`); five CSS animations (Bounce, Confetti, Fireworks, Wave, Shake); Web Audio API ringtone; Snooze and Dismiss buttons |
+| `src/components/SettingsModal.jsx` | Settings dialog: Location / Gateway / AI / **Notes** (alarm config) / Layout tabs |
+| `src/hooks/useDashboard.js` | Polling hook: fetches all card data; per-card `AbortController` with 20 s timeout cancels stale in-flight requests; exponential backoff (10 s → 60 s → 5 min) for persistently-failing cards; separate 5-min interval for market indices; both intervals pause when the tab is hidden and resume on focus |
 | `src/hooks/useClock.js` | Live clock with greeting time-of-day logic |
 | `src/utils/parsers.js` | `parseWeather`, `parseCalendar`, `parseStocks`, `parseIndMoney`, `parseCelebrations`, formatting helpers |
+| `src/utils/alarmUtils.js` | Shared alarm helpers: `loadTasks/saveTasks`, `loadAlarmConfig/saveAlarmConfig`, `playAlarmSound` (closes `AudioContext` after all oscillators finish to stay within the browser's ~6-context limit), `genId` |
 | `src/data/wishMessages.js` | Template wish messages (birthday, anniversary, work-anniversary) used as AI fallback |
 
 ### Management Scripts
@@ -417,7 +419,7 @@ App.jsx
     │
     ├── CARD_ORDER = ['weather','indmoney','system',
     │                 'gmail','calendar','celebrations',
-    │                 'whatsapp','stocks']
+    │                 'whatsapp','stocks','notes']
     │
     ├── cardLayout.hidden = Set of hidden card IDs (localStorage)
     │
@@ -433,9 +435,47 @@ App.jsx
           ├── Row 2: ['gmail','calendar','celebrations']
           │   same collapsing logic as Row 1
           │
-          ├── 'whatsapp' → col-span-6 (or col-span-12 if stocks hidden)
-          └── 'stocks'   → col-span-6 (or col-span-12 if whatsapp hidden)
+          └── Row 3: ['whatsapp','stocks','notes']
+              same collapsing logic — all three cards equal width
 ```
+
+---
+
+## Task Alarm System
+
+The alarm engine lives entirely in the browser (no backend).
+
+```
+App.jsx (setInterval every 10s)
+    │
+    │── loadTasks() from localStorage
+    │── find first task: !done && alarm && new Date(alarm) <= now
+    │── setAlarmTask(fired) → renders AlarmNotification portal
+    │
+    ├── AlarmNotification
+    │   ├── plays Web Audio ringtone on mount (AudioContext, no files needed)
+    │   ├── renders chosen CSS animation (Bounce / Confetti / Fireworks / Wave / Shake)
+    │   ├── Snooze → updates task.alarm = now + snooze_minutes; dispatches tasks-updated
+    │   └── Dismiss → clears task.alarm; dispatches tasks-updated
+    │
+    └── QuickNotesCard
+        ├── listens to 'tasks-updated' CustomEvent → re-reads localStorage
+        └── alarm picker: inline datetime-local input per task row (hover to reveal)
+
+Settings → Notes tab
+    ├── picks animation, ringtone, snooze duration
+    ├── saves to localStorage['dashboard_alarm_config']
+    └── dispatches 'alarm-config-changed' CustomEvent → App.jsx updates alarmConfig state
+```
+
+**Ringtone generation** — no audio files; tones synthesised via Web Audio API oscillators:
+
+| Option | Waveform | Pattern |
+|--------|----------|---------|
+| Chime  | Sine | Ascending scale: 440→554→659→880 Hz |
+| Bell   | Sine | Single struck 880 Hz + 1100 Hz decay |
+| Beep   | Square | 5 ascending blips 400→800 Hz |
+| Alarm  | Sawtooth | 8 alternating 800/600 Hz pulses |
 
 ---
 
@@ -527,6 +567,8 @@ Rate limiting, logging, and error handling are applied automatically.
 |-----|-------------|
 | `dashboard_user_name` | User's display name shown in the greeting |
 | `dashboard_location` | City/location for weather |
-| `dashboard_hidden_cards` | JSON array of hidden card IDs |
+| `dashboard_card_layout` | JSON `{hidden: [...]}` of hidden card IDs |
 | `dashboard_llm_models` | JSON array of configured LLM models |
-| `dashboard_active_llm` | Active LLM model index |
+| `dashboard_llm_active_id` | ID of the active LLM model |
+| `dashboard_tasks` | JSON array of task objects `{id, text, done, alarm}` |
+| `dashboard_alarm_config` | JSON alarm settings `{animation, ringtone, snooze}` |
