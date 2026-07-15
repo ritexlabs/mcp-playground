@@ -13,9 +13,28 @@ const MODAL_ACCENT = '#818cf8'
 
 function LocationTab({ location, onSave, onClose }) {
   const [city, setCity] = useState(location?.name || '')
+  const [name, setName] = useState(() => localStorage.getItem('dashboard_user_name') || '')
+
+  function handleSave() {
+    const trimmedName = name.trim()
+    localStorage.setItem('dashboard_user_name', trimmedName)
+    window.dispatchEvent(new CustomEvent('dashboard-user-name-change', { detail: trimmedName }))
+    onSave(city)
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-slate-400">Set your city to fetch local weather conditions.</p>
+      <p className="text-sm text-slate-400">Personalise your dashboard with your name and location.</p>
+      <div className="flex flex-col gap-1.5">
+        <label className="card-label">Your Name</label>
+        <input
+          className="cfg-input"
+          placeholder="e.g. Ritesh"
+          value={name}
+          onChange={e => setName(e.target.value)}
+        />
+        <p className="text-[11px] text-slate-600">Shown in the greeting — "Good Morning, Ritesh 👋"</p>
+      </div>
       <div className="flex flex-col gap-1.5">
         <label className="card-label">City / Location</label>
         <input
@@ -27,8 +46,8 @@ function LocationTab({ location, onSave, onClose }) {
       </div>
       <div className="flex gap-2 justify-end pt-2">
         <button onClick={onClose} className="btn-secondary">Cancel</button>
-        <button onClick={() => onSave(city)} className="btn-primary" disabled={!city.trim()}>
-          Save Location
+        <button onClick={handleSave} className="btn-primary" disabled={!city.trim()}>
+          Save
         </button>
       </div>
     </div>

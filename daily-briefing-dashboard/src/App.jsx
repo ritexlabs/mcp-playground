@@ -8,52 +8,60 @@ import CelebrationsCard      from './components/CelebrationsCard.jsx'
 import StocksCard            from './components/StocksCard.jsx'
 import IndMoneyCard          from './components/IndMoneyCard.jsx'
 import WhatsAppCard          from './components/WhatsAppCard.jsx'
+import GmailCard             from './components/GmailCard.jsx'
+import SystemCard            from './components/SystemCard.jsx'
 import SettingsModal         from './components/SettingsModal.jsx'
 
 // ── Card catalogue ────────────────────────────────────────────────────────────
 
 export const CARD_DEFS = [
-  { id: 'weather',      label: 'Weather',          icon: '🌤️' },
-  { id: 'calendar',     label: 'Calendar',          icon: '📅' },
-  { id: 'celebrations', label: 'Celebrations',      icon: '🎉' },
-  { id: 'indmoney',     label: 'Net Worth',         icon: '💰' },
-  { id: 'whatsapp',     label: 'WhatsApp',          icon: '💬' },
-  { id: 'stocks',       label: 'Stock Portfolio',   icon: '📈' },
+  { id: 'weather',      label: 'Weather',        icon: '🌤️' },
+  { id: 'indmoney',     label: 'Net Worth',       icon: '💰' },
+  { id: 'system',       label: 'System Stats',    icon: '💻' },
+  { id: 'gmail',        label: 'Gmail',           icon: '✉️'  },
+  { id: 'calendar',     label: 'Schedule',        icon: '📅' },
+  { id: 'celebrations', label: 'Celebrations',    icon: '🎉' },
+  { id: 'whatsapp',     label: 'WhatsApp',        icon: '💬' },
+  { id: 'stocks',       label: 'Stock Portfolio', icon: '📈' },
 ]
 
 // Fixed display order — never changes, only visibility is user-controlled
 const FIXED_ORDER = CARD_DEFS.map(c => c.id)
 
-// Compute col-span classes dynamically so the grid stays balanced no matter
-// which cards are enabled. Cards are paired: weather+calendar, celebrations+indmoney.
-// When one partner is hidden the other expands to full width.
+// Row 1: Weather · Net Worth · System (top priorities — always visible first)
+// Row 2: Gmail · Schedule · Celebrations (communication + events)
+// Row 3: WhatsApp · Stocks (secondary)
 function computeSpans(visible) {
   const has = id => visible.includes(id)
   const spans = {}
 
-  // Row 1 — Weather · Calendar · Celebrations as equal-width trio
-  const trio = ['weather', 'calendar', 'celebrations'].filter(has)
-  if (trio.length === 3) {
-    spans.weather      = 'col-span-12 md:col-span-4'
-    spans.calendar     = 'col-span-12 md:col-span-4'
-    spans.celebrations = 'col-span-12 md:col-span-4'
-  } else if (trio.length === 2) {
-    trio.forEach(id => { spans[id] = 'col-span-12 md:col-span-6' })
+  // Row 1 — Weather · IndMoney · System as equal-width trio
+  const row1 = ['weather', 'indmoney', 'system'].filter(has)
+  if (row1.length === 3) {
+    row1.forEach(id => { spans[id] = 'col-span-12 md:col-span-4' })
+  } else if (row1.length === 2) {
+    row1.forEach(id => { spans[id] = 'col-span-12 md:col-span-6' })
   } else {
-    trio.forEach(id => { spans[id] = 'col-span-12' })
+    row1.forEach(id => { spans[id] = 'col-span-12' })
   }
 
-  // Row 2 — IndMoney + WhatsApp side by side; each expands if the other is hidden
-  const pair = ['indmoney', 'whatsapp'].filter(has)
-  if (pair.length === 2) {
-    spans.indmoney  = 'col-span-12 md:col-span-6'
-    spans.whatsapp  = 'col-span-12 md:col-span-6'
+  // Row 2 — Gmail · Calendar · Celebrations as equal-width trio
+  const row2 = ['gmail', 'calendar', 'celebrations'].filter(has)
+  if (row2.length === 3) {
+    row2.forEach(id => { spans[id] = 'col-span-12 md:col-span-4' })
+  } else if (row2.length === 2) {
+    row2.forEach(id => { spans[id] = 'col-span-12 md:col-span-6' })
   } else {
-    pair.forEach(id => { spans[id] = 'col-span-12' })
+    row2.forEach(id => { spans[id] = 'col-span-12' })
   }
 
-  // Row 3 — Stocks full width
-  if (has('stocks')) spans.stocks = 'col-span-12'
+  // Row 3 — WhatsApp · Stocks side by side
+  const row3 = ['whatsapp', 'stocks'].filter(has)
+  if (row3.length === 2) {
+    row3.forEach(id => { spans[id] = 'col-span-12 md:col-span-6' })
+  } else {
+    row3.forEach(id => { spans[id] = 'col-span-12' })
+  }
 
   return spans
 }
@@ -161,6 +169,17 @@ export default function App() {
                 )}
                 {id === 'whatsapp' && (
                   <WhatsAppCard delay={delay} />
+                )}
+                {id === 'gmail' && (
+                  <GmailCard
+                    data={data.gmail} loading={loading.gmail} error={errors.gmail}
+                    onRetry={() => actions.refreshCard('gmail')}
+                    delay={delay}
+                    syncedAt={syncedAt.gmail}
+                  />
+                )}
+                {id === 'system' && (
+                  <SystemCard delay={delay} />
                 )}
               </div>
             )

@@ -6,7 +6,7 @@ import {
 
 // ── State shape ───────────────────────────────────────────────────────────────
 
-const CARDS = ['weather', 'calendar', 'stocks', 'celebrations', 'indmoney']
+const CARDS = ['weather', 'calendar', 'stocks', 'celebrations', 'indmoney', 'gmail']
 
 const initialState = {
   data:     Object.fromEntries(CARDS.map(k => [k, null])),
@@ -118,6 +118,18 @@ export function useDashboard() {
     }
   }, [])
 
+  const fetchGmail = useCallback(async () => {
+    dispatch({ type: 'LOAD_START', card: 'gmail' })
+    try {
+      const r = await fetch('/api/gmail?page=1&pageSize=5')
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const raw = await r.json()
+      dispatch({ type: 'LOAD_OK', card: 'gmail', payload: raw })
+    } catch (e) {
+      dispatch({ type: 'LOAD_ERR', card: 'gmail', error: e.message })
+    }
+  }, [])
+
   const checkStatus = useCallback(async () => {
     try {
       const r = await fetch('/api/status', { signal: AbortSignal.timeout(4000) })
@@ -133,14 +145,14 @@ export function useDashboard() {
   const refreshAll = useCallback(() => {
     return Promise.allSettled([
       fetchWeather(), fetchCalendar(), fetchStocks(),
-      fetchCelebrations(), fetchIndMoney(),
+      fetchCelebrations(), fetchIndMoney(), fetchGmail(),
     ])
-  }, [fetchWeather, fetchCalendar, fetchStocks, fetchCelebrations, fetchIndMoney])
+  }, [fetchWeather, fetchCalendar, fetchStocks, fetchCelebrations, fetchIndMoney, fetchGmail])
 
   const refreshCard = useCallback((card) => {
-    const map = { weather: fetchWeather, calendar: fetchCalendar, stocks: fetchStocks, celebrations: fetchCelebrations, indmoney: fetchIndMoney }
+    const map = { weather: fetchWeather, calendar: fetchCalendar, stocks: fetchStocks, celebrations: fetchCelebrations, indmoney: fetchIndMoney, gmail: fetchGmail }
     map[card]?.()
-  }, [fetchWeather, fetchCalendar, fetchStocks, fetchCelebrations, fetchIndMoney])
+  }, [fetchWeather, fetchCalendar, fetchStocks, fetchCelebrations, fetchIndMoney, fetchGmail])
 
   // ── Set location + re-fetch weather ──────────────────────────────────────
 

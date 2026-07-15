@@ -200,13 +200,15 @@ export function parseIndMoney(raw) {
     .filter(inv => inv.current_value > 0)
     .sort((a, b) => b.current_value - a.current_value)
   return {
-    authRequired:  false,
-    totalNetworth: snap.total_networth ?? snap.total_current_value ?? null,
-    totalInvested: snap.total_invested ?? null,
+    authRequired:   false,
+    totalNetworth:  snap.total_networth ?? snap.total_current_value ?? null,
+    totalInvested:  snap.total_invested ?? null,
     investments,
-    stockSips:     raw.stock_sips || [],
-    mfSips:        raw.mf_sips   || [],
-    lastUpdated:   raw.last_updated ?? null,
+    stockSips:      raw.stock_sips     || [],
+    mfSips:         raw.mf_sips        || [],
+    mfHoldings:     raw.mf_holdings    || [],
+    stockHoldings:  raw.stock_holdings || [],
+    lastUpdated:    raw.last_updated ?? null,
   }
 }
 

@@ -1,13 +1,23 @@
+import { useState, useEffect } from 'react'
 import { useClock } from '../hooks/useClock.js'
 
 export default function Header({ onRefresh, onSettings, refreshing }) {
   const { greeting, time, seconds, date } = useClock()
+  const [userName, setUserName] = useState(() => localStorage.getItem('dashboard_user_name') || '')
+
+  useEffect(() => {
+    function onNameChange(e) { setUserName(e.detail) }
+    window.addEventListener('dashboard-user-name-change', onNameChange)
+    return () => window.removeEventListener('dashboard-user-name-change', onNameChange)
+  }, [])
+
+  const greetingText = userName.trim() ? `${greeting}, ${userName.trim()}` : greeting
 
   return (
     <header className="flex items-center justify-between px-6 py-4 opacity-0 animate-fade-in-up" style={{ animationFillMode: 'forwards' }}>
       {/* Left — greeting + date */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white">{greeting} 👋</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-white">{greetingText} 👋</h1>
         <p className="text-sm text-slate-400 mt-0.5">{date}</p>
       </div>
 
