@@ -3,11 +3,11 @@
 MCP Gateway management — setup, start, stop, status, restart.
 
 Usage (from anywhere in the repo):
-    python scripts/mcp_gateway.py setup
-    python scripts/mcp_gateway.py start
-    python scripts/mcp_gateway.py stop
-    python scripts/mcp_gateway.py status
-    python scripts/mcp_gateway.py restart
+    python mcp-gateway/mcp_gateway.py setup
+    python mcp-gateway/mcp_gateway.py start
+    python mcp-gateway/mcp_gateway.py stop
+    python mcp-gateway/mcp_gateway.py status
+    python mcp-gateway/mcp_gateway.py restart
 """
 
 import os
@@ -209,7 +209,7 @@ def do_setup() -> None:
     info(f"  2.  Authorise Google (opens browser):")
     info(f"        cd mcp-gateway && {venv_py} scripts/auth_all.py")
     info(f"  3.  Start the gateway:")
-    info(f"        python scripts/mcp_gateway.py start")
+    info(f"        python mcp-gateway/mcp_gateway.py start")
     print()
 
 
@@ -221,10 +221,10 @@ def do_start() -> None:
     port = int(port_s) if port_s.isdigit() else DEFAULT_PORT
 
     if not VENV_DIR.exists():
-        err(".venv not found — run:  python scripts/mcp_gateway.py setup")
+        err(".venv not found — run:  python mcp-gateway/mcp_gateway.py setup")
         sys.exit(1)
     if not ENV_FILE.exists():
-        err(".env not found — run:  python scripts/mcp_gateway.py setup")
+        err(".env not found — run:  python mcp-gateway/mcp_gateway.py setup")
         sys.exit(1)
 
     existing = _read_pid()

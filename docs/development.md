@@ -31,11 +31,10 @@
 
 ```bash
 cd mcp-gateway
-./setup.sh              # creates .venv and installs requirements.txt
-cp .env.example .env    # copy the template
+python mcp_gateway.py setup    # creates .venv, installs dependencies, copies .env.example → .env
 ```
 
-Edit `.env` and fill in your values (use `.env.example` as a reference — never paste real secrets into `.env.example`):
+Edit `mcp-gateway/.env` and fill in your values (use `.env.example` as a reference — never paste real secrets into `.env.example`):
 ```
 GOOGLE_CLIENT_ID=<your-client-id>.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=<your-client-secret>
@@ -46,11 +45,11 @@ DASHBOARD_ORIGIN=http://localhost:8080
 ### Start / Stop
 
 ```bash
-./start.sh              # launches uvicorn at http://127.0.0.1:8000
-./stop.sh               # graceful shutdown
+python mcp_gateway.py start    # launches uvicorn at http://127.0.0.1:8000
+python mcp_gateway.py stop     # graceful shutdown
 ```
 
-Logs tail: `tail -f ~/.local/mcp-gateway/logs/audit-$(date +%F).log`
+Logs tail: `tail -f mcp-gateway/logs/gateway.log`
 
 ### Google Authentication
 
@@ -107,30 +106,27 @@ See [`docs/architecture.md`](architecture.md#configuration-reference) for the fu
 ```bash
 cd daily-briefing-dashboard
 npm install
-npm run build           # ⚠️ required — builds React app into dist/ (must re-run after any src/ change)
 cp .env.example .env    # only needed if gateway is not on http://127.0.0.1:8000
 ```
 
-> **Why `npm run build` is required:** `server.js` serves from `dist/` if it exists, otherwise
-> falls back to `public/` which is the legacy static app. Skipping the build means you see the
-> old UI with no WhatsApp card, no IndMoney card, and no modern settings panel.
+> **Note:** `npm run build` is handled automatically — `server.js` builds the React app into `dist/` on first start if it is not present. You only need to re-run `npm run build` manually after making changes to `src/`.
 
 ### Start / Stop (recommended)
 
 Use the unified stack script from the repo root:
 
 ```bash
-bash scripts/start_dashboard.sh start    # gateway first → dashboard
-bash scripts/start_dashboard.sh stop     # dashboard first → gateway
-bash scripts/start_dashboard.sh restart
-bash scripts/start_dashboard.sh status
+python scripts/start_dashboard.py start    # gateway first → dashboard
+python scripts/start_dashboard.py stop     # dashboard first → gateway
+python scripts/start_dashboard.py restart
+python scripts/start_dashboard.py status
 ```
 
 Or start each service individually:
 
 ```bash
-./start.sh              # dashboard only — launches at http://localhost:8080
-./stop.sh
+python daily_dashboard.py start    # dashboard only — launches at http://localhost:8080
+python daily_dashboard.py stop
 ```
 
 The dashboard checks gateway reachability every 10 seconds. If the gateway was not running when the page loaded, cards that failed will automatically refresh once it comes online.

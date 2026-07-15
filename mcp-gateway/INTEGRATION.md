@@ -14,7 +14,7 @@ Connect the MCP Gateway to AI desktop apps and IDEs. The gateway speaks standard
 
 ```bash
 cd mcp-gateway
-./start.sh
+python mcp-gateway/mcp_gateway.py start
 # Verify: curl http://127.0.0.1:8000/health
 ```
 
@@ -85,7 +85,7 @@ Quit Claude Desktop completely (not just close the window — use ⌘Q or menu �
 | Symptom | Fix |
 |---------|-----|
 | Tools not visible after restart | Confirm the gateway is running: `curl http://127.0.0.1:8000/health` |
-| `Connection refused` error | The gateway is not running — run `./start.sh` in `mcp-gateway/` |
+| `Connection refused` error | The gateway is not running — run `python mcp-gateway/mcp_gateway.py start` in `mcp-gateway/` |
 | JSON parse error on startup | Check `claude_desktop_config.json` for syntax errors (trailing commas, missing braces) |
 | Tools visible but returning errors | Check that Google is authenticated: open `http://127.0.0.1:8000/auth/status` in a browser |
 
@@ -101,7 +101,7 @@ Make sure the MCP Gateway is running:
 
 ```bash
 cd mcp-gateway
-./start.sh
+python mcp-gateway/mcp_gateway.py start
 curl http://127.0.0.1:8000/health
 ```
 
@@ -147,7 +147,7 @@ Grant all requested permissions. The token is stored in macOS Keychain — you o
 
 | Symptom | Fix |
 |---------|-----|
-| Server shows "Disconnected" | Gateway not running — run `./start.sh` |
+| Server shows "Disconnected" | Gateway not running — run `python mcp-gateway/mcp_gateway.py start` |
 | No tools appear | Check URL is exactly `http://127.0.0.1:8000/mcp` (not `/sse`) |
 | Google tools return auth errors | Open `http://127.0.0.1:8000/auth/google` to re-authenticate |
 

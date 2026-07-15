@@ -62,17 +62,16 @@ Run these steps once after cloning the repository.
 
 ### Step 1 — Git configuration (optional, one-time)
 
-This protects AI instruction files from being accidentally committed:
+This protects AI instruction files from being accidentally committed — skip if you're just running the app:
 
 ```
-python scripts\setup.py
+git config core.hooksPath .githooks
 ```
 
 ### Step 2 — Set up the MCP Gateway
 
 ```
-cd mcp-gateway
-python setup.py
+python mcp-gateway\mcp_gateway.py setup
 ```
 
 This script will:
@@ -145,15 +144,13 @@ Open **two separate terminal windows**.
 **Terminal 1 — Gateway:**
 
 ```
-cd mcp-gateway
-python start.py
+python mcp-gateway\mcp_gateway.py start
 ```
 
 **Terminal 2 — Dashboard:**
 
 ```
-cd daily-briefing-dashboard
-python start.py
+python daily-briefing-dashboard\daily_dashboard.py start
 ```
 
 ---
@@ -173,10 +170,10 @@ Or manage each service individually:
 
 | Action | Command |
 |--------|---------|
-| Start gateway | `cd mcp-gateway && python start.py` |
-| Stop gateway | `cd mcp-gateway && python stop.py` |
-| Start dashboard | `cd daily-briefing-dashboard && python start.py` |
-| Stop dashboard | `cd daily-briefing-dashboard && python stop.py` |
+| Start gateway | `python mcp-gateway\mcp_gateway.py start` |
+| Stop gateway | `python mcp-gateway\mcp_gateway.py stop` |
+| Start dashboard | `python daily-briefing-dashboard\daily_dashboard.py start` |
+| Stop dashboard | `python daily-briefing-dashboard\daily_dashboard.py stop` |
 
 ---
 
@@ -235,7 +232,7 @@ The `.py` scripts use `DETACHED_PROCESS` and `CREATE_NEW_PROCESS_GROUP` flags to
 - `mcp-gateway\.gateway.pid`
 - `daily-briefing-dashboard\.server.pid`
 
-Running `python stop.py` reads these files to cleanly terminate the process. If a PID file is missing, the stop script falls back to finding the process by port using `netstat`.
+The management scripts read these files to cleanly terminate the process. If a PID file is missing, they fall back to finding the process by port using `netstat`.
 
 ---
 
@@ -258,11 +255,15 @@ Node.js was likely installed without the option to add it to PATH. Reinstall fro
 
 ### Gateway shows `Access Denied` or port conflict
 
-Port 8000 may already be in use. Start the gateway on a different port:
+Port 8000 may already be in use. Edit `mcp-gateway\.env` and set:
 
 ```
-cd mcp-gateway
-python start.py --port 8001
+MCP_PORT=8001
+```
+
+Then start normally:
+```
+python mcp-gateway\mcp_gateway.py start
 ```
 
 Then update `daily-briefing-dashboard\.env`:
@@ -276,8 +277,7 @@ MCP_GATEWAY_URL=http://127.0.0.1:8001
 The virtual environment packages may not have been installed. Re-run setup:
 
 ```
-cd mcp-gateway
-python setup.py
+python mcp-gateway\mcp_gateway.py setup
 ```
 
 ### Google auth browser tab does not open
@@ -300,12 +300,11 @@ IndMoney access tokens expire periodically. Click the **Reconnect IndMoney** but
 ## Quick Reference
 
 ```
-# One-time setup
-python scripts\setup.py          # git config
-cd mcp-gateway
-python setup.py                  # install python deps
+# One-time setup (from repo root)
+python mcp-gateway\mcp_gateway.py setup          # create .venv, install deps, create .env
 # edit mcp-gateway\.env with your Google credentials
-.venv\Scripts\python.exe scripts\auth_all.py   # google auth
+cd mcp-gateway && .venv\Scripts\python.exe scripts\auth_all.py   # google auth
+cd ..
 
 # Daily use (from repo root)
 python scripts\start_dashboard.py start    # start everything

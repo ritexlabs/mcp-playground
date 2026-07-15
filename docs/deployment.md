@@ -86,28 +86,28 @@ DASHBOARD_ORIGIN=http://localhost:8080
 From the repo root:
 
 ```bash
-bash scripts/start_dashboard.sh start
+python scripts/start_dashboard.py start
 ```
 
 This starts the gateway first, waits for it to be healthy, then starts the dashboard.
 
 ```bash
-bash scripts/start_dashboard.sh stop     # graceful shutdown
-bash scripts/start_dashboard.sh restart  # restart both
-bash scripts/start_dashboard.sh status   # check PIDs and health
+python scripts/start_dashboard.py stop     # graceful shutdown
+python scripts/start_dashboard.py restart  # restart both
+python scripts/start_dashboard.py status   # check PIDs and health
 ```
 
 ### Start services individually
 
 ```bash
 # Gateway
-cd mcp-gateway && ./start.sh
+python mcp-gateway/mcp_gateway.py start
 
 # Verify
 curl http://127.0.0.1:8000/health
 
 # Dashboard (in a separate terminal)
-cd daily-briefing-dashboard && ./start.sh
+python daily-briefing-dashboard/daily_dashboard.py start
 ```
 
 Open [http://localhost:8080](http://localhost:8080) in your browser.
@@ -135,8 +135,13 @@ Grant all requested permissions (Gmail, Calendar, Drive, Sheets). The token is s
 ## Stopping
 
 ```bash
-cd mcp-gateway && ./stop.sh
-cd daily-briefing-dashboard && ./stop.sh
+python scripts/start_dashboard.py stop
+```
+
+Or individually:
+```bash
+python daily-briefing-dashboard/daily_dashboard.py stop
+python mcp-gateway/mcp_gateway.py stop
 ```
 
 ---
@@ -169,9 +174,9 @@ Each line is a JSON object with `event`, `timestamp`, `tool`, and outcome fields
 
 ```bash
 git pull
-cd mcp-gateway && pip install -r requirements.txt   # if requirements changed
-cd ../daily-briefing-dashboard && npm install       # if package.json changed
-./start.sh
+cd mcp-gateway && .venv/bin/pip install -r requirements.txt   # if requirements changed
+cd ../daily-briefing-dashboard && npm install                  # if package.json changed
+python scripts/start_dashboard.py restart
 ```
 
 ---
